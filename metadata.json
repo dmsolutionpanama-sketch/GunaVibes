@@ -1,0 +1,6 @@
+{
+  "name": "Guna Vibes",
+  "description": "Plataforma web y panel administrativo de traslados y tours a Gunayala (San Blas), Panamá, con control de cupos, reseñas de Google, Instagram feed y gestión de contenido.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
