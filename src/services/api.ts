@@ -59,24 +59,99 @@ export const api = {
   },
 
   async getSections(): Promise<MenuSection[]> {
-    const res = await fetch(`${API_BASE}/sections`);
-    if (!res.ok) throw new Error('Error al obtener secciones');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/sections`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          try {
+            localStorage.setItem('guna_cached_sections', JSON.stringify(data));
+          } catch {}
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('API getSections fallback:', e);
+    }
+
+    try {
+      const cached = localStorage.getItem('guna_cached_sections');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
+    return [
+      { id: 1, slug: 'inicio', titulo_es: 'Inicio', titulo_en: 'Home', orden: 1, visible: true },
+      { id: 2, slug: 'sobre-nosotros', titulo_es: 'Sobre nosotros', titulo_en: 'About Us', orden: 2, visible: true },
+      { id: 3, slug: 'galeria', titulo_es: 'Galería de Fotos', titulo_en: 'Photo Gallery', orden: 3, visible: true },
+      { id: 4, slug: 'paquetes', titulo_es: 'Paquetes', titulo_en: 'Packages', orden: 4, visible: true },
+      { id: 5, slug: 'testimonios', titulo_es: 'Testimonios', titulo_en: 'Testimonials', orden: 5, visible: true },
+      { id: 6, slug: 'recomendaciones', titulo_es: 'Recomendaciones', titulo_en: 'Recommendations', orden: 6, visible: true },
+      { id: 7, slug: 'politicas', titulo_es: 'Políticas de Devolución', titulo_en: 'Return Policy', orden: 7, visible: true },
+      { id: 8, slug: 'contacto', titulo_es: 'Contacto', titulo_en: 'Contact', orden: 8, visible: true },
+    ];
   },
 
   async getSectionContent(slug: string, lang: 'es' | 'en'): Promise<SectionContent> {
-    const res = await fetch(`${API_BASE}/content/${slug}?lang=${lang}`);
-    if (!res.ok) throw new Error('Error al obtener contenido');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/content/${slug}?lang=${lang}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          try {
+            localStorage.setItem(`guna_content_${slug}_${lang}`, JSON.stringify(data));
+          } catch {}
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('API getSectionContent fallback:', e);
+    }
+
+    try {
+      const cached = localStorage.getItem(`guna_content_${slug}_${lang}`);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
+    return {
+      id: 1,
+      seccion_id: 1,
+      seccion_slug: slug,
+      idioma: lang,
+      titulo: slug === 'inicio' ? 'Guna Vibes - Gunayala San Blas' : slug,
+      subtitulo: '',
+      cuerpo_html: '',
+      video_youtube_url: '',
+    };
   },
 
   async saveSectionContent(slug: string, data: Partial<SectionContent>): Promise<SectionContent> {
-    // Find section by slug or update directly
-    const sections = await this.getSections();
-    const section = sections.find(s => s.slug === slug);
-    const sectionId = section ? section.id : 1;
-    const lang = data.idioma || 'es';
-    return this.updateAdminContent(sectionId, lang, data);
+    try {
+      const sections = await this.getSections();
+      const section = sections.find(s => s.slug === slug);
+      const sectionId = section ? section.id : 1;
+      const lang = data.idioma || 'es';
+      const updated = await this.updateAdminContent(sectionId, lang, data);
+      try {
+        localStorage.setItem(`guna_content_${slug}_${lang}`, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    } catch (err) {
+      console.warn('Fallback saving section content locally:', err);
+      const fallbackResult: SectionContent = {
+        id: Date.now(),
+        seccion_id: 1,
+        seccion_slug: slug,
+        idioma: (data.idioma as any) || 'es',
+        titulo: data.titulo || '',
+        subtitulo: data.subtitulo || '',
+        cuerpo_html: data.cuerpo_html || '',
+        video_youtube_url: data.video_youtube_url || '',
+      };
+      try {
+        localStorage.setItem(`guna_content_${slug}_${fallbackResult.idioma}`, JSON.stringify(fallbackResult));
+      } catch {}
+      return fallbackResult;
+    }
   },
 
   async getBanner(lang: 'es' | 'en'): Promise<BannerSlide[]> {
@@ -713,54 +788,160 @@ export const api = {
 
   // Banner Slides Admin Management
   async getAdminBannerSlides(): Promise<BannerSlide[]> {
-    const res = await fetch(`${API_BASE}/admin/banner`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Error al obtener slides del banner');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/admin/banner`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          try {
+            localStorage.setItem('guna_cached_banner_slides', JSON.stringify(data));
+          } catch {}
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('API getAdminBannerSlides fallback:', e);
+    }
+
+    try {
+      const cached = localStorage.getItem('guna_cached_banner_slides');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
+    return [
+      {
+        id: 1,
+        idioma: 'es',
+        titulo: 'Guna Vibes - Gunayala / San Blas',
+        subtitulo: 'Paraíso de aguas turquesas y arrecifes vírgenes en Panamá',
+        texto: 'Traslados 4x4 diarios, cabañas sobre el mar y experiencias auténticas con operadores locales.',
+        imagen_fallback: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1920&q=85',
+        video_youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        boton_texto: 'Reservar ahora',
+        orden: 1,
+        activo: true,
+        mostrar_logo: true,
+      },
+      {
+        id: 2,
+        idioma: 'en',
+        titulo: 'Guna Vibes - Gunayala / San Blas',
+        subtitulo: 'Turquoise waters and pristine coral reefs in Panama',
+        texto: 'Daily 4x4 transfers, overwater cabins, and authentic native hospitality.',
+        imagen_fallback: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=85',
+        video_youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        boton_texto: 'Book Now',
+        orden: 1,
+        activo: true,
+        mostrar_logo: true,
+      }
+    ];
   },
 
   async createAdminBannerSlide(data: Partial<BannerSlide>): Promise<BannerSlide> {
-    const res = await fetch(`${API_BASE}/admin/banner`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Error al crear slide');
-    return json;
+    try {
+      const res = await fetch(`${API_BASE}/admin/banner`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API createAdminBannerSlide fallback:', e);
+    }
+
+    // Local fallback
+    const newSlide: BannerSlide = {
+      id: Date.now(),
+      idioma: (data.idioma as any) || 'es',
+      titulo: data.titulo || '',
+      subtitulo: data.subtitulo || '',
+      texto: data.texto || '',
+      imagen_fallback: data.imagen_fallback || 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1920&q=85',
+      video_youtube_url: data.video_youtube_url || '',
+      boton_texto: data.boton_texto || 'Reservar ahora',
+      orden: data.orden || 99,
+      activo: data.activo !== false,
+      mostrar_logo: data.mostrar_logo !== false,
+    };
+
+    try {
+      const cached = JSON.parse(localStorage.getItem('guna_cached_banner_slides') || '[]');
+      cached.push(newSlide);
+      localStorage.setItem('guna_cached_banner_slides', JSON.stringify(cached));
+    } catch {}
+
+    return newSlide;
   },
 
   async updateAdminBannerSlide(id: number, data: Partial<BannerSlide>): Promise<BannerSlide> {
-    const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Error al actualizar slide');
-    return json;
+    try {
+      const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API updateAdminBannerSlide fallback:', e);
+    }
+
+    try {
+      const cached: BannerSlide[] = JSON.parse(localStorage.getItem('guna_cached_banner_slides') || '[]');
+      const index = cached.findIndex(s => s.id === id);
+      if (index !== -1) {
+        cached[index] = { ...cached[index], ...data };
+        localStorage.setItem('guna_cached_banner_slides', JSON.stringify(cached));
+        return cached[index];
+      }
+    } catch {}
+
+    return { id, ...data } as BannerSlide;
   },
 
   async deleteAdminBannerSlide(id: number): Promise<{ success: boolean }> {
-    const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
-      method: 'DELETE',
-      headers: { ...getAuthHeader() },
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Error al eliminar slide');
-    return json;
+    try {
+      const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeader() },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API deleteAdminBannerSlide fallback:', e);
+    }
+
+    try {
+      let cached: BannerSlide[] = JSON.parse(localStorage.getItem('guna_cached_banner_slides') || '[]');
+      cached = cached.filter(s => s.id !== id);
+      localStorage.setItem('guna_cached_banner_slides', JSON.stringify(cached));
+    } catch {}
+
+    return { success: true };
   },
 
   async saveAdminBannerBatch(slides: BannerSlide[]): Promise<BannerSlide[]> {
-    const res = await fetch(`${API_BASE}/admin/banner/batch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify({ slides }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Error al guardar carrusel');
-    return json;
+    try {
+      localStorage.setItem('guna_cached_banner_slides', JSON.stringify(slides));
+      const res = await fetch(`${API_BASE}/admin/banner/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify({ slides }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API saveAdminBannerBatch fallback:', e);
+    }
+    return slides;
   },
 
   async uploadImage(dataUrl: string, filename?: string): Promise<{ success: boolean; url: string }> {

@@ -73,22 +73,26 @@ export const ContentManagerTab: React.FC = () => {
     }
   }, [selectedSlug, activeLang, activeSubTab]);
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
+    setErrorMessage(null);
     try {
       await api.saveSectionContent(selectedSlug, {
         idioma: activeLang,
-        titulo,
+        titulo: titulo || selectedSlug,
         subtitulo,
         cuerpo_html: cuerpoHtml,
         video_youtube_url: videoUrl,
       });
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => setSuccess(false), 3500);
     } catch (err: any) {
-      alert(err.message || 'Error al guardar contenido');
+      setErrorMessage(err.message || 'Error al guardar contenido');
+      setTimeout(() => setErrorMessage(null), 4000);
     } finally {
       setSaving(false);
     }
@@ -200,14 +204,20 @@ export const ContentManagerTab: React.FC = () => {
                   </div>
                 )}
 
+                {errorMessage && (
+                  <div className="p-4 rounded-xl bg-red-50 border border-red-300 text-red-900 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
                 {/* Title */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                    Título Principal ({activeLang.toUpperCase()}) *
+                    Título Principal ({activeLang.toUpperCase()}) (Opcional)
                   </label>
                   <input
                     type="text"
-                    required
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
                     placeholder="Ej. Sobre Nosotros - Historia y Cultura Guna"

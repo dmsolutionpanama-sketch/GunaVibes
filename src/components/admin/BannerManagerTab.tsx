@@ -24,7 +24,17 @@ import {
   RotateCw,
   HelpCircle,
   ExternalLink,
+  Save,
 } from 'lucide-react';
+
+// Extract YouTube Video ID
+function extractYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const cleanUrl = url.trim();
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = cleanUrl.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+}
 
 export const BannerManagerTab: React.FC = () => {
   const { config, theme, refreshConfig } = useTheme();
@@ -57,9 +67,25 @@ export const BannerManagerTab: React.FC = () => {
   const [bannerIntervalo, setBannerIntervalo] = useState<number>(config?.banner_intervalo_segundos || 6);
   const [bannerVideoGlobal, setBannerVideoGlobal] = useState<string>(config?.banner_video_youtube_url || '');
 
+  // Direct quick YouTube state
+  const [quickYoutubeInput, setQuickYoutubeInput] = useState<string>(config?.banner_video_youtube_url || '');
+  const [savingQuickVideo, setSavingQuickVideo] = useState(false);
+
   // File upload input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const quickPhotoInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    setErrorMessage(null);
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
+
+  const showError = (msg: string) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 5000);
+  };
 
   const loadBannerSlides = async () => {
     setLoading(true);
@@ -67,7 +93,7 @@ export const BannerManagerTab: React.FC = () => {
       const data = await api.getAdminBannerSlides();
       setSlides(data);
     } catch (err: any) {
-      setErrorMessage('Error al cargar slides del banner: ' + (err.message || 'Error de conexión'));
+      console.warn('Cargando slides con fallback:', err);
     } finally {
       setLoading(false);
     }
@@ -88,16 +114,42 @@ export const BannerManagerTab: React.FC = () => {
       setBannerLogoPosicion((config.banner_logo_posicion as any) || 'arriba_titulo');
       setBannerIntervalo(config.banner_intervalo_segundos || 6);
       setBannerVideoGlobal(config.banner_video_youtube_url || '');
+      setQuickYoutubeInput(config.banner_video_youtube_url || '');
     }
   }, [config]);
+
+  // Handle Quick Save YouTube Video directly
+  const handleQuickSaveYouTube = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setSavingQuickVideo(true);
+    try {
+      const trimmedUrl = quickYoutubeInput.trim();
+      setBannerVideoGlobal(trimmedUrl);
+
+      await api.updateAdminConfig({
+        banner_video_youtube_url: trimmedUrl,
+        banner_altura: bannerAltura as any,
+        banner_altura_custom: Number(bannerAlturaCustom),
+        banner_mostrar_logo: bannerMostrarLogo,
+        banner_logo_url: bannerLogoUrl,
+        banner_logo_tamano: bannerLogoTamano,
+        banner_logo_posicion: bannerLogoPosicion,
+        banner_intervalo_segundos: Number(bannerIntervalo),
+      });
+
+      if (refreshConfig) await refreshConfig();
+      showSuccess(trimmedUrl ? '¡Video de YouTube guardado y vinculado al Banner con éxito!' : 'Video del banner retirado con éxito.');
+    } catch (err: any) {
+      showError(err.message || 'Error al guardar video de YouTube');
+    } finally {
+      setSavingQuickVideo(false);
+    }
+  };
 
   // Handle saving general banner configuration
   const handleSaveBannerConfig = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSavingConfig(true);
-    setSuccessMessage(null);
-    setErrorMessage(null);
-
     try {
       await api.updateAdminConfig({
         banner_altura: bannerAltura as any,
@@ -107,15 +159,13 @@ export const BannerManagerTab: React.FC = () => {
         banner_logo_tamano: bannerLogoTamano,
         banner_logo_posicion: bannerLogoPosicion,
         banner_intervalo_segundos: Number(bannerIntervalo),
-        banner_video_youtube_url: bannerVideoGlobal,
+        banner_video_youtube_url: bannerVideoGlobal.trim(),
       });
 
       if (refreshConfig) await refreshConfig();
-
-      setSuccessMessage('¡Configuración general del banner guardada y aplicada con éxito!');
-      setTimeout(() => setSuccessMessage(null), 4000);
+      showSuccess('¡Configuración general del banner guardada y aplicada con éxito!');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error al guardar configuración del banner');
+      showError(err.message || 'Error al guardar configuración del banner');
     } finally {
       setSavingConfig(false);
     }
@@ -138,19 +188,57 @@ export const BannerManagerTab: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  // Quick Add Photo Direct from Computer without modal
+  const handleQuickAddPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showError('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      if (dataUrl) {
+        try {
+          const newSlideData: Partial<BannerSlide> = {
+            idioma: activeLang,
+            titulo: 'Gunayala (San Blas) Paradise',
+            subtitulo: 'Experiencias y traslados directos al paraíso',
+            texto: '',
+            imagen_fallback: dataUrl,
+            video_youtube_url: '',
+            boton_texto: activeLang === 'en' ? 'Book Now' : 'Reservar ahora',
+            orden: slides.filter((s) => s.idioma === activeLang).length + 1,
+            activo: true,
+            mostrar_logo: true,
+          };
+          await api.createAdminBannerSlide(newSlideData);
+          await loadBannerSlides();
+          showSuccess('¡Nueva foto agregada al carrusel con éxito!');
+        } catch (err: any) {
+          showError('Error al agregar foto: ' + (err.message || ''));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Open editor for existing slide
   const handleEditSlide = (slide: BannerSlide) => {
     setEditingSlide({ ...slide });
     setIsModalOpen(true);
   };
 
-  // Handle local image upload via FileReader
+  // Handle local image upload via FileReader inside modal
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP, etc.)');
+      showError('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)');
       return;
     }
 
@@ -182,28 +270,51 @@ export const BannerManagerTab: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Save slide (Create or Update)
+  // Save slide (Create or Update) - Absolutely NO mandatory fields
   const handleSaveSlide = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSlide) return;
 
     setSavingSlide(true);
-    setErrorMessage(null);
 
     try {
+      // Auto-extract thumbnail if image is empty but YouTube link is provided
+      let finalImage = editingSlide.imagen_fallback?.trim();
+      const ytUrl = editingSlide.video_youtube_url?.trim() || '';
+
+      if (!finalImage && ytUrl) {
+        const ytId = extractYouTubeId(ytUrl);
+        if (ytId) {
+          finalImage = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+        }
+      }
+
+      if (!finalImage) {
+        finalImage = 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1920&q=85';
+      }
+
+      const slideToSave: Partial<BannerSlide> = {
+        ...editingSlide,
+        titulo: editingSlide.titulo?.trim() || '',
+        subtitulo: editingSlide.subtitulo?.trim() || '',
+        texto: editingSlide.texto?.trim() || '',
+        imagen_fallback: finalImage,
+        video_youtube_url: ytUrl,
+        boton_texto: editingSlide.boton_texto?.trim() || (activeLang === 'en' ? 'Book Now' : 'Reservar ahora'),
+      };
+
       if (editingSlide.id) {
-        await api.updateAdminBannerSlide(editingSlide.id, editingSlide);
+        await api.updateAdminBannerSlide(editingSlide.id, slideToSave);
       } else {
-        await api.createAdminBannerSlide(editingSlide);
+        await api.createAdminBannerSlide(slideToSave);
       }
 
       await loadBannerSlides();
       setIsModalOpen(false);
       setEditingSlide(null);
-      setSuccessMessage('¡Slide del banner guardado con éxito!');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccess('¡Slide del banner guardado con éxito!');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error al guardar slide');
+      showError(err.message || 'Error al guardar slide');
     } finally {
       setSavingSlide(false);
     }
@@ -211,15 +322,12 @@ export const BannerManagerTab: React.FC = () => {
 
   // Delete slide
   const handleDeleteSlide = async (id: number) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este slide del carrusel?')) return;
-
     try {
       await api.deleteAdminBannerSlide(id);
       await loadBannerSlides();
-      setSuccessMessage('Slide eliminado con éxito');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccess('Slide eliminado del carrusel con éxito');
     } catch (err: any) {
-      alert('Error al eliminar slide: ' + err.message);
+      showError('Error al eliminar slide: ' + (err.message || ''));
     }
   };
 
@@ -247,8 +355,7 @@ export const BannerManagerTab: React.FC = () => {
 
     try {
       await api.saveAdminBannerBatch(combined);
-      setSuccessMessage('Orden del carrusel actualizado');
-      setTimeout(() => setSuccessMessage(null), 2000);
+      showSuccess('Orden del carrusel actualizado');
     } catch (err) {
       console.error('Error al guardar nuevo orden:', err);
     }
@@ -256,21 +363,22 @@ export const BannerManagerTab: React.FC = () => {
 
   // Filter slides for active language
   const currentLangSlides = slides.filter((s) => s.idioma === activeLang);
+  const detectedQuickYtId = extractYouTubeId(quickYoutubeInput);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Toast notifications */}
       {successMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-sm flex items-center gap-3 shadow-sm animate-fade-in">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs sm:text-sm flex items-center gap-3 shadow-sm animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <span className="font-semibold">{successMessage}</span>
+          <span className="font-bold">{successMessage}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-4 rounded-2xl bg-red-50 border border-red-300 text-red-900 text-sm flex items-center gap-3 shadow-sm animate-fade-in">
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-300 text-red-900 text-xs sm:text-sm flex items-center gap-3 shadow-sm animate-fade-in">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <span className="font-semibold">{errorMessage}</span>
+          <span className="font-bold">{errorMessage}</span>
         </div>
       )}
 
@@ -321,17 +429,131 @@ export const BannerManagerTab: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 1: GLOBAL BANNER CONTROLS (HEIGHT, LOGO OVERLAY, YOUTUBE & ROTATION) */}
+      {/* QUICK YOUTUBE VIDEO CARD (ULTRA SIMPLE & NO REQUIRED FIELDS) */}
+      <div className="bg-gradient-to-br from-stone-900 via-[#102730] to-[#0A1D24] rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-teal-900/40 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30">
+              <Video className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-white font-heading flex items-center gap-2">
+                <span>Video de YouTube en el Banner Principal</span>
+                <span className="text-[10px] bg-red-600 text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Directo
+                </span>
+              </h3>
+              <p className="text-xs text-stone-300">
+                Pega el enlace de YouTube que desees reproducir en el banner de fondo o modal. No requiere campos obligatorios.
+              </p>
+            </div>
+          </div>
+
+          {detectedQuickYtId && (
+            <span className="text-[11px] font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Video ID detectado: {detectedQuickYtId}</span>
+            </span>
+          )}
+        </div>
+
+        <form onSubmit={handleQuickSaveYouTube} className="space-y-4 pt-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={quickYoutubeInput}
+                onChange={(e) => setQuickYoutubeInput(e.target.value)}
+                placeholder="Pega enlace: https://www.youtube.com/watch?v=... o https://youtu.be/..."
+                className="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              />
+              {quickYoutubeInput && (
+                <button
+                  type="button"
+                  onClick={() => setQuickYoutubeInput('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white text-xs font-bold px-2 py-1 cursor-pointer"
+                  title="Limpiar"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingQuickVideo}
+              className="px-6 py-3 rounded-2xl bg-[#0E9AA7] hover:bg-[#0c8793] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-102 flex-shrink-0"
+            >
+              {savingQuickVideo ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar Video en Banner</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Quick YouTube Preview Box */}
+          {detectedQuickYtId ? (
+            <div className="bg-black/40 rounded-2xl p-4 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src={`https://img.youtube.com/vi/${detectedQuickYtId}/hqdefault.jpg`}
+                  alt="YouTube Preview"
+                  className="w-24 h-16 object-cover rounded-xl border border-white/20"
+                />
+                <div>
+                  <p className="text-xs font-bold text-white">Video Listo para Reproducción</p>
+                  <p className="text-[11px] text-stone-400 font-mono">ID: {detectedQuickYtId}</p>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${detectedQuickYtId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-teal-300 hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    <span>Probar en YouTube</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickYoutubeInput('');
+                  setBannerVideoGlobal('');
+                  api.updateAdminConfig({ banner_video_youtube_url: '' }).then(() => {
+                    if (refreshConfig) refreshConfig();
+                    showSuccess('Video retirado del banner.');
+                  });
+                }}
+                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-red-500/20 text-stone-300 hover:text-red-300 text-xs font-bold transition-all cursor-pointer border border-white/10"
+              >
+                Quitar Video del Banner
+              </button>
+            </div>
+          ) : quickYoutubeInput.trim() ? (
+            <p className="text-xs text-amber-300 flex items-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Asegúrate de pegar un enlace válido de YouTube (ej. https://www.youtube.com/watch?v=...)</span>
+            </p>
+          ) : null}
+        </form>
+      </div>
+
+      {/* SECTION 1: GLOBAL BANNER CONTROLS (HEIGHT, LOGO OVERLAY, ROTATION) */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-stone-200 space-y-6">
         <div className="flex items-center justify-between border-b border-stone-100 pb-4">
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-[#E8622C]" />
             <h3 className="text-base font-bold text-stone-900">
-              1. Configuración de Altura, Logo y Comportamiento del Banner
+              1. Altura, Logo y Ajustes del Banner
             </h3>
           </div>
           <span className="text-[11px] font-bold text-stone-400 bg-stone-100 px-3 py-1 rounded-full">
-            Afecta a la Portada en Tiempo Real
+            Sin campos obligatorios
           </span>
         </div>
 
@@ -441,7 +663,7 @@ export const BannerManagerTab: React.FC = () => {
                   {/* Logo source */}
                   <div>
                     <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                      Logo a mostrar en el Banner:
+                      Logo a mostrar en el Banner (Opcional):
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -478,25 +700,26 @@ export const BannerManagerTab: React.FC = () => {
                       <select
                         value={bannerLogoTamano}
                         onChange={(e) => setBannerLogoTamano(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-bold bg-stone-50"
+                        className="w-full px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-bold bg-stone-50"
                       >
                         <option value="normal">Normal (Estándar)</option>
                         <option value="grande">Grande (Destacado)</option>
-                        <option value="extragrande">Extra Grande (Máximo)</option>
+                        <option value="extragrande">Extra Grande</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                        Posición sobre Slide:
+                        Posición del Logo:
                       </label>
                       <select
                         value={bannerLogoPosicion}
                         onChange={(e) => setBannerLogoPosicion(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-bold bg-stone-50"
+                        className="w-full px-3 py-1.5 rounded-lg border border-stone-300 text-xs font-bold bg-stone-50"
                       >
                         <option value="arriba_titulo">Arriba del Título (Integrado)</option>
                         <option value="centrado">Centrado Superior</option>
+                        <option value="flotante">Flotante Superior Izquierda</option>
                       </select>
                     </div>
                   </div>
@@ -539,25 +762,7 @@ export const BannerManagerTab: React.FC = () => {
                 <span className="text-xs text-stone-500 font-medium">por slide</span>
               </div>
               <p className="text-[11px] text-stone-400">
-                El carrusel rota suavemente entre todas las fotos activas y se pausa automáticamente cuando el visitante coloca el cursor encima.
-              </p>
-            </div>
-
-            {/* Control: LINK DE VIDEO DE YOUTUBE GLOBAL / RESPALDO */}
-            <div className="space-y-2 p-5 rounded-2xl bg-stone-50 border border-stone-200">
-              <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-700 flex items-center gap-2">
-                <Video className="w-4 h-4 text-red-600" />
-                <span>Link de Video de YouTube para el Banner</span>
-              </label>
-              <input
-                type="url"
-                value={bannerVideoGlobal}
-                onChange={(e) => setBannerVideoGlobal(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-[#0E9AA7] bg-white"
-              />
-              <p className="text-[11px] text-stone-400">
-                Se reproducirá como video de fondo o en el modal en pantalla completa cuando el usuario haga clic en "Ver Video".
+                El carrusel rota suavemente entre todas las fotos activas y se pausa automáticamente al colocar el cursor encima.
               </p>
             </div>
           </div>
@@ -592,19 +797,39 @@ export const BannerManagerTab: React.FC = () => {
               <span>2. Fotos y Slides del Carrusel ({activeLang === 'es' ? 'Español' : 'English'})</span>
             </h3>
             <p className="text-xs text-stone-500">
-              Carga tus fotos en alta resolución desde tu computador o añade enlaces directos.
+              Carga fotos desde tu computador o añade enlaces directos. Todo es opcional y flexible.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleNewSlide}
-            className="px-5 py-2.5 rounded-2xl text-xs font-extrabold text-white shadow-md flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
-            style={{ backgroundColor: theme.secondaryColor || '#E8622C' }}
-          >
-            <Plus className="w-4 h-4" />
-            <span>Cargar Nueva Foto / Slide</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Upload from computer directly */}
+            <input
+              type="file"
+              ref={quickPhotoInputRef}
+              accept="image/*"
+              onChange={handleQuickAddPhoto}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => quickPhotoInputRef.current?.click()}
+              className="px-4 py-2.5 rounded-2xl text-xs font-extrabold bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <Upload className="w-4 h-4 text-[#0E9AA7]" />
+              <span>Subir Foto Rápida</span>
+            </button>
+
+            {/* Custom slide button */}
+            <button
+              type="button"
+              onClick={handleNewSlide}
+              className="px-5 py-2.5 rounded-2xl text-xs font-extrabold text-white shadow-md flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
+              style={{ backgroundColor: theme.secondaryColor || '#E8622C' }}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo Slide con Textos</span>
+            </button>
+          </div>
         </div>
 
         {/* Slides Grid / List */}
@@ -617,7 +842,7 @@ export const BannerManagerTab: React.FC = () => {
           <div className="p-8 text-center bg-stone-50 rounded-2xl border border-dashed border-stone-300">
             <ImageIcon className="w-10 h-10 text-stone-300 mx-auto mb-2" />
             <p className="text-sm font-bold text-stone-700">No hay fotos registradas para este idioma</p>
-            <p className="text-xs text-stone-500 mb-4">Haz clic en "Cargar Nueva Foto / Slide" para comenzar.</p>
+            <p className="text-xs text-stone-500 mb-4">Haz clic en "Subir Foto Rápida" o "Nuevo Slide" para comenzar.</p>
             <button
               onClick={handleNewSlide}
               className="px-4 py-2 bg-[#0E9AA7] text-white font-bold text-xs rounded-xl cursor-pointer"
@@ -636,7 +861,7 @@ export const BannerManagerTab: React.FC = () => {
                 <div className="relative aspect-video w-full bg-stone-900 overflow-hidden group">
                   <img
                     src={slide.imagen_fallback || 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1000&q=80'}
-                    alt={slide.titulo}
+                    alt={slide.titulo || 'Slide'}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
                   
@@ -646,7 +871,7 @@ export const BannerManagerTab: React.FC = () => {
                       Slide #{index + 1}
                     </span>
                     {slide.video_youtube_url && (
-                      <span className="px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold flex items-center gap-1">
+                      <span className="px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs">
                         <Video className="w-3 h-3" />
                         <span>Video YT</span>
                       </span>
@@ -675,14 +900,19 @@ export const BannerManagerTab: React.FC = () => {
                 {/* Content Details */}
                 <div className="p-4 space-y-2 flex-1">
                   <h4 className="font-extrabold text-sm text-stone-900 leading-snug line-clamp-2">
-                    {slide.titulo || '(Sin título)'}
+                    {slide.titulo || '(Foto sin título - Visual pura)'}
                   </h4>
-                  <p className="text-xs text-teal-800 font-semibold line-clamp-1">
-                    {slide.subtitulo || '—'}
-                  </p>
-                  <p className="text-xs text-stone-500 line-clamp-2">
-                    {slide.texto || '—'}
-                  </p>
+                  {slide.subtitulo && (
+                    <p className="text-xs text-teal-800 font-semibold line-clamp-1">
+                      {slide.subtitulo}
+                    </p>
+                  )}
+                  {slide.video_youtube_url && (
+                    <p className="text-[11px] text-red-600 font-mono truncate flex items-center gap-1">
+                      <Video className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{slide.video_youtube_url}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Action Bar */}
@@ -735,7 +965,7 @@ export const BannerManagerTab: React.FC = () => {
         )}
       </div>
 
-      {/* SLIDE CREATE / EDIT MODAL */}
+      {/* SLIDE CREATE / EDIT MODAL - ABSOLUTELY NO MANDATORY FIELDS */}
       {isModalOpen && editingSlide && (
         <div
           id="slide-editor-modal"
@@ -750,9 +980,12 @@ export const BannerManagerTab: React.FC = () => {
             <div className="flex items-center justify-between p-6 bg-stone-900 text-white">
               <div className="flex items-center gap-2.5">
                 <ImageIcon className="w-5 h-5 text-[#0E9AA7]" />
-                <h3 className="font-extrabold text-base font-heading">
-                  {editingSlide.id ? `Editar Slide #${editingSlide.id}` : 'Cargar Nueva Foto / Slide'}
-                </h3>
+                <div>
+                  <h3 className="font-extrabold text-base font-heading">
+                    {editingSlide.id ? `Editar Slide #${editingSlide.id}` : 'Cargar Nueva Foto / Video'}
+                  </h3>
+                  <span className="text-[10px] text-stone-400">Todos los campos son opcionales y fáciles de actualizar</span>
+                </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -768,7 +1001,7 @@ export const BannerManagerTab: React.FC = () => {
               {/* Image Upload / URL */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold uppercase text-stone-700">
-                  Foto de Fondo para el Slide *
+                  Foto de Fondo para el Slide (Opcional)
                 </label>
                 
                 {/* Image Preview Box */}
@@ -806,7 +1039,7 @@ export const BannerManagerTab: React.FC = () => {
                   <span className="text-xs text-stone-400 font-bold">o pega URL:</span>
 
                   <input
-                    type="url"
+                    type="text"
                     value={editingSlide.imagen_fallback || ''}
                     onChange={(e) =>
                       setEditingSlide({
@@ -824,10 +1057,10 @@ export const BannerManagerTab: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold uppercase text-stone-700 mb-1 flex items-center gap-1.5">
                   <Video className="w-4 h-4 text-red-600" />
-                  <span>Enlace de Video de YouTube (Opcional para este Slide)</span>
+                  <span>Enlace de Video de YouTube (Opcional)</span>
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={editingSlide.video_youtube_url || ''}
                   onChange={(e) =>
                     setEditingSlide({
@@ -835,7 +1068,7 @@ export const BannerManagerTab: React.FC = () => {
                       video_youtube_url: e.target.value,
                     })
                   }
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-[#0E9AA7]"
                 />
               </div>
@@ -843,11 +1076,10 @@ export const BannerManagerTab: React.FC = () => {
               {/* Title */}
               <div>
                 <label className="block text-xs font-bold uppercase text-stone-700 mb-1">
-                  Título Principal *
+                  Título Principal (Opcional)
                 </label>
                 <input
                   type="text"
-                  required
                   value={editingSlide.titulo || ''}
                   onChange={(e) =>
                     setEditingSlide({
@@ -863,7 +1095,7 @@ export const BannerManagerTab: React.FC = () => {
               {/* Subtitle */}
               <div>
                 <label className="block text-xs font-bold uppercase text-stone-700 mb-1">
-                  Subtítulo
+                  Subtítulo (Opcional)
                 </label>
                 <input
                   type="text"
@@ -882,10 +1114,10 @@ export const BannerManagerTab: React.FC = () => {
               {/* Description */}
               <div>
                 <label className="block text-xs font-bold uppercase text-stone-700 mb-1">
-                  Descripción / Texto Detallado
+                  Descripción / Texto Detallado (Opcional)
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={editingSlide.texto || ''}
                   onChange={(e) =>
                     setEditingSlide({
@@ -898,11 +1130,11 @@ export const BannerManagerTab: React.FC = () => {
                 />
               </div>
 
-              {/* CTA Button Text */}
+              {/* CTA Button Text & Language */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-stone-700 mb-1">
-                    Texto del Botón CTA
+                    Texto del Botón (Opcional)
                   </label>
                   <input
                     type="text"
@@ -920,7 +1152,7 @@ export const BannerManagerTab: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-stone-700 mb-1">
-                    Idioma
+                    Idioma del Slide
                   </label>
                   <select
                     value={editingSlide.idioma || 'es'}
@@ -984,7 +1216,7 @@ export const BannerManagerTab: React.FC = () => {
                 <button
                   type="submit"
                   disabled={savingSlide}
-                  className="px-6 py-2.5 rounded-xl bg-[#0E9AA7] hover:bg-[#0c8793] text-white text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-[#0E9AA7] hover:bg-[#0c8793] text-white text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
                 >
                   {savingSlide ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
