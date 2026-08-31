@@ -26,6 +26,25 @@ import {
 
 const API_BASE = '/api';
 
+async function parseJsonResponse<T = any>(res: Response, defaultError = 'Error en la petición'): Promise<T> {
+  const text = await res.text();
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Error de servidor (${res.status}): ${res.statusText || defaultError}`);
+    }
+    throw new Error(defaultError);
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || data?.message || defaultError);
+  }
+
+  return data as T;
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('guna_admin_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -153,17 +172,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ correo, password }),
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Error al iniciar sesión');
-    return json;
+    return parseJsonResponse(res, 'Error al iniciar sesión');
   },
 
   async checkAuth(): Promise<{ user: AdminUser }> {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { ...getAuthHeader() },
     });
-    if (!res.ok) throw new Error('Sesión no válida');
-    return res.json();
+    return parseJsonResponse(res, 'Sesión no válida');
   },
 
   // Admin
