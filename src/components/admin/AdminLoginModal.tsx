@@ -25,12 +25,25 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleDirectAccess = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await login(correo || 'admin@gunavibes.com', password || 'admin123');
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Error al acceder');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await login(correo, password);
+      await login(correo || 'admin@gunavibes.com', password || 'admin123');
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Credenciales incorrectas');
@@ -76,6 +89,22 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Quick Direct 1-Click Access Button */}
+          <button
+            type="button"
+            onClick={handleDirectAccess}
+            disabled={loading}
+            className="w-full py-3 px-4 rounded-xl font-extrabold text-sm text-stone-900 bg-amber-400 hover:bg-amber-300 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-amber-500/30"
+          >
+            <span>⚡ Ingreso Directo Inmediato (1 Clic)</span>
+          </button>
+
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-stone-200"></div>
+            <span className="flex-shrink mx-3 text-[11px] font-bold uppercase text-stone-400">o con credenciales</span>
+            <div className="flex-grow border-t border-stone-200"></div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
               Correo Electrónico
@@ -84,7 +113,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
               <input
                 type="email"
-                required
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
                 placeholder="admin@gunavibes.com"
@@ -94,14 +122,16 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-              Contraseña
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                Contraseña
+              </label>
+              <span className="text-[11px] text-teal-600 font-semibold">(Opcional / Demo)</span>
+            </div>
             <div className="relative">
               <KeyRound className="w-4 h-4 absolute left-3.5 top-3.5 text-stone-400" />
               <input
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -111,9 +141,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           </div>
 
           {/* Quick Demo Credentials Reminder */}
-          <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed">
-            <strong>Credenciales de Demostración:</strong> <br />
-            Email: <code className="text-teal-700 font-mono font-bold">admin@gunavibes.com</code> • Password: <code className="text-teal-700 font-mono font-bold">admin123</code>
+          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed">
+            Email: <code className="text-teal-700 font-mono font-bold">admin@gunavibes.com</code> • Password: <code className="text-teal-700 font-mono font-bold">admin123</code> (o clic en el botón amarillo superior)
           </div>
 
           <button
