@@ -19,8 +19,8 @@ export const createServer = () => {
   });
 
   app.use(cors());
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Honeypot Trap Routes to catch & block hack tools and malicious scanners
   const honeypotPaths = [
@@ -50,6 +50,19 @@ export const createServer = () => {
   // Health check
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ status: 'ok', service: 'Guna Vibes API', timestamp: new Date().toISOString() });
+  });
+
+  // Global Error Handler guaranteeing JSON responses (prevents HTML error leak)
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error('Express API error caught:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    const status = typeof err.status === 'number' ? err.status : 500;
+    res.status(status).json({
+      success: false,
+      error: err.message || 'Error procesando la solicitud en el servidor',
+    });
   });
 
   return app;

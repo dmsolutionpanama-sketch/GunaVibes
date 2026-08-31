@@ -381,6 +381,7 @@ export const SettingsTab: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -547,6 +548,7 @@ export const SettingsTab: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
+    setSaveError(null);
 
     try {
       // 1. Update theme in backend
@@ -581,7 +583,8 @@ export const SettingsTab: React.FC = () => {
       const logs = await api.getAuditLogs();
       setAuditLogs(logs);
     } catch (err: any) {
-      alert(err.message || 'Error guardando ajustes en el backend');
+      setSaveError(err.message || 'Error guardando ajustes en el servidor');
+      setTimeout(() => setSaveError(null), 6000);
     } finally {
       setSaving(false);
     }
@@ -590,6 +593,14 @@ export const SettingsTab: React.FC = () => {
   return (
     <div className="space-y-8 animate-fadeIn">
       
+      {/* ERROR BANNER */}
+      {saveError && (
+        <div className="p-4 rounded-3xl bg-rose-50 border border-rose-300 text-rose-900 text-sm font-bold flex items-center gap-3 shadow-md animate-fadeIn">
+          <Shield className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
+
       {/* SUCCESS BANNER */}
       {saveSuccess && (
         <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-sm font-bold flex items-center gap-3 shadow-md animate-fadeIn">
