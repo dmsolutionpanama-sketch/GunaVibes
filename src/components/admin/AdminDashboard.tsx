@@ -2,45 +2,44 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
+import { Logo } from '../layout/Logo';
 import { LeadFunnelDashboardTab } from './LeadFunnelDashboardTab';
 import { ReservationsTab } from './ReservationsTab';
-import { DailyCapacityCalendarTab } from './DailyCapacityCalendarTab';
-import { CountryDemographicsTab } from './CountryDemographicsTab';
-import { OutgoingEmailTab } from './OutgoingEmailTab';
+import { LeadsTab } from './LeadsTab';
 import { ContentManagerTab } from './ContentManagerTab';
-import { PackagesTab } from './PackagesTab';
+import { SettingsTab } from './SettingsTab';
+import { YouTubeLiveTab } from './YouTubeLiveTab';
 import { GoogleReviewsTab } from './GoogleReviewsTab';
 import { InstagramTab } from './InstagramTab';
-import { YouTubeLiveTab } from './YouTubeLiveTab';
-import { LeadsTab } from './LeadsTab';
+import { PackagesTab } from './PackagesTab';
+import { DailyCapacityCalendarTab } from './DailyCapacityCalendarTab';
+import { OutgoingEmailTab } from './OutgoingEmailTab';
+import { CountryDemographicsTab } from './CountryDemographicsTab';
 import { SecurityCenterTab } from './SecurityCenterTab';
-import { SettingsTab } from './SettingsTab';
-import { Logo } from '../layout/Logo';
+import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
 import {
-  TrendingUp,
+  LogOut,
+  Settings,
   CalendarCheck,
-  CalendarDays,
-  Globe,
-  Mail,
+  Users,
   FileEdit,
-  Package,
+  Radio,
   Star,
   Instagram,
-  Radio,
-  Users,
-  ShieldCheck,
-  Settings,
-  LogOut,
-  ExternalLink,
-  Menu,
-  X,
-  ChevronRight,
-  Shield,
+  Package,
+  TrendingUp,
   Clock,
-  DollarSign,
   Send,
   CheckCircle2,
-  Car,
+  DollarSign,
+  ExternalLink,
+  ShieldCheck,
+  CalendarDays,
+  Mail,
+  Globe,
+  Menu,
+  X,
+  LayoutDashboard,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -48,6 +47,7 @@ interface AdminDashboardProps {
 }
 
 type AdminTab =
+  | 'overview'
   | 'funnel'
   | 'reservations'
   | 'calendar-capacity'
@@ -66,7 +66,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
   const { user, logout } = useAuth();
   const { theme, config } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<AdminTab>('funnel');
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [stats, setStats] = useState({
     totalReservas: 0,
@@ -107,9 +107,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
 
   const navGroups = [
     {
+      groupTitle: 'PANEL PRINCIPAL & CONTROL',
+      items: [
+        { id: 'overview', label: 'Dashboard Ejecutivo 360°', icon: LayoutDashboard, highlight: true },
+        { id: 'funnel', label: 'Embudo de Ventas & Leads', icon: TrendingUp },
+      ],
+    },
+    {
       groupTitle: 'VENTAS & CONVERSIÓN',
       items: [
-        { id: 'funnel', label: 'Embudo de Ventas & Leads', icon: TrendingUp, highlight: true },
         { id: 'reservations', label: 'Reservas & Pagos', icon: CalendarCheck, badge: stats.pendientes > 0 ? stats.pendientes : undefined },
         { id: 'calendar-capacity', label: 'Cupos Diarios & Calendario', icon: CalendarDays },
         { id: 'demographics', label: 'Demografía & Pauta por País', icon: Globe },
@@ -136,7 +142,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
       groupTitle: 'SISTEMA & SEGURIDAD',
       items: [
         { id: 'security', label: 'Centro de Seguridad & Logs', icon: ShieldCheck, badgeText: 'Activo' },
-        { id: 'settings', label: 'Ajustes & Personalización', icon: Settings },
+        { id: 'settings', label: 'Ajustes, Tipografía & MySQL', icon: Settings },
       ],
     },
   ];
@@ -301,6 +307,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
 
         {/* Tab View Component */}
         <div className="animate-fadeIn">
+          {activeTab === 'overview' && (
+            <ExecutiveOverviewTab
+              onNavigate={(tab) => setActiveTab(tab as AdminTab)}
+            />
+          )}
           {activeTab === 'funnel' && <LeadFunnelDashboardTab />}
           {activeTab === 'reservations' && <ReservationsTab />}
           {activeTab === 'calendar-capacity' && <DailyCapacityCalendarTab />}

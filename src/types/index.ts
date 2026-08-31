@@ -257,8 +257,10 @@ export interface LeadInteractionNote {
   autor: string;
   autor_id?: number | null;
   nota: string;
-  tipo: 'nota' | 'llamada' | 'whatsapp' | 'cotizacion' | 'reunion';
+  tipo: 'nota' | 'llamada' | 'whatsapp' | 'cotizacion' | 'reunion' | 'instagram' | 'facebook' | 'otro';
 }
+
+export type PackageSanBlas = PackageItem;
 
 export interface RegisteredClient {
   id: number;
@@ -384,11 +386,14 @@ export interface UserPersonalTypography {
 }
 
 export interface SiteConfig {
-  cupo_maximo_diario: number;
+  nombre_empresa?: string;
+  cupo_maximo_dia?: number;
+  cupo_maximo_diario?: number;
   telefono_contacto: string;
   correo_contacto: string;
   direccion: string;
   whatsapp: string;
+  enlaces_externos_menu?: ExternalMenuLink[];
   google_place_id: string;
   google_places_api_key: string;
   google_reviews_ultima_sincronizacion?: string;
