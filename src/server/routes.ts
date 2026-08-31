@@ -303,19 +303,51 @@ router.delete('/admin/banner/:id', requireAuth, (req: Request, res: Response) =>
   res.json({ success: deleted });
 });
 
-// Admin Image Upload / Asset Store
+// Admin Multimedia Upload & 3-Part Storage on Server
 router.post('/admin/upload', requireAuth, (req: Request, res: Response) => {
-  const { dataUrl, filename, altText } = req.body;
+  const { dataUrl, filename, altText, categoria } = req.body;
   if (!dataUrl) {
-    return res.status(400).json({ error: 'No image data provided' });
+    return res.status(400).json({ error: 'No se proporcionaron datos de imagen o video (dataUrl)' });
   }
-  // Store or return validated URL
-  res.json({
-    success: true,
-    url: dataUrl,
-    filename: filename || 'banner-image.jpg',
-    altText: altText || 'Guna Vibes Banner Image',
-  });
+
+  const user = (req as any).user;
+  const targetCategory = (categoria as any) || 'galeria';
+
+  try {
+    const asset = db.saveMediaFile({
+      dataUrl,
+      filename,
+      categoria: ['banners', 'galeria', 'videos', 'historico'].includes(targetCategory)
+        ? targetCategory
+        : 'galeria',
+      adminId: user?.id || 1,
+    });
+
+    res.json({
+      success: true,
+      url: asset.ruta_publica,
+      asset,
+      filename: asset.nombre_original,
+      altText: altText || 'Guna Vibes Media Asset',
+    });
+  } catch (err: any) {
+    console.error('Error saving media file to server storage:', err);
+    res.status(500).json({ error: 'Error guardando el archivo multimedia en el disco del servidor' });
+  }
+});
+
+// Admin Media Assets Directory & Historical Catalog
+router.get('/admin/media', requireAuth, (req: Request, res: Response) => {
+  const categoria = req.query.categoria as string;
+  const assets = db.getMediaAssets(categoria);
+  res.json(assets);
+});
+
+router.delete('/admin/media/:id', requireAuth, (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const user = (req as any).user;
+  const ok = db.deleteMediaAsset(id, user?.id);
+  res.json({ success: ok });
 });
 
 // Admin Packages CRUD

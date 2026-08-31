@@ -1215,20 +1215,55 @@ export const api = {
     return slides;
   },
 
-  async uploadImage(dataUrl: string, filename?: string): Promise<{ success: boolean; url: string }> {
+  async uploadImage(
+    dataUrl: string,
+    filename?: string,
+    categoria: 'banners' | 'galeria' | 'videos' | 'historico' = 'galeria'
+  ): Promise<{ success: boolean; url: string; asset?: import('../types').MediaAsset }> {
     try {
       const res = await fetch(`${API_BASE}/admin/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({ dataUrl, filename }),
+        body: JSON.stringify({ dataUrl, filename, categoria }),
       });
       if (res.ok) {
-        return await parseJsonResponse(res, 'Error al subir imagen');
+        return await parseJsonResponse(res, 'Error al subir archivo al servidor');
       }
     } catch (e) {
       console.warn('API uploadImage fallback:', e);
     }
     return { success: true, url: dataUrl };
+  },
+
+  async uploadMediaFile(
+    dataUrl: string,
+    filename?: string,
+    categoria: 'banners' | 'galeria' | 'videos' | 'historico' = 'galeria'
+  ): Promise<{ success: boolean; url: string; asset?: import('../types').MediaAsset }> {
+    return this.uploadImage(dataUrl, filename, categoria);
+  },
+
+  async getAdminMediaAssets(categoria?: string): Promise<import('../types').MediaAsset[]> {
+    try {
+      const query = categoria ? `?categoria=${encodeURIComponent(categoria)}` : '';
+      const res = await fetch(`${API_BASE}/admin/media${query}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (res.ok) {
+        return await parseJsonResponse(res, 'Error al obtener catálogo de medios');
+      }
+    } catch (e) {
+      console.warn('API getAdminMediaAssets fallback:', e);
+    }
+    return [];
+  },
+
+  async deleteAdminMediaAsset(id: number): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/admin/media/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() },
+    });
+    return await parseJsonResponse(res, 'Error al eliminar archivo multimedia');
   },
 
   // Photos & Gallery CRUD

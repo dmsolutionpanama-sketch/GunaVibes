@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import path from 'path';
 import { router } from './routes';
 import { db } from './db';
 
@@ -21,6 +22,29 @@ export const createServer = () => {
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Ensure storage folder structure exists on startup
+  db.ensureStorageDirectories();
+
+  // Serve uploads publicly with caching and video range-stream support
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  app.use(
+    '/uploads',
+    express.static(uploadsDir, {
+      maxAge: '30d',
+      etag: true,
+      setHeaders: (res, filePath) => {
+        if (
+          filePath.endsWith('.mp4') ||
+          filePath.endsWith('.webm') ||
+          filePath.endsWith('.mov') ||
+          filePath.endsWith('.ogv')
+        ) {
+          res.setHeader('Accept-Ranges', 'bytes');
+        }
+      },
+    })
+  );
 
   // Honeypot Trap Routes to catch & block hack tools and malicious scanners
   const honeypotPaths = [

@@ -100,6 +100,23 @@ export interface VideoItem {
   creado_en?: string;
 }
 
+export interface MediaAsset {
+  id: number;
+  categoria: 'banners' | 'galeria' | 'videos' | 'historico';
+  nombre_original: string;
+  nombre_servidor: string;
+  ruta_publica: string;
+  tipo_mime: string;
+  tamano_bytes: number;
+  ancho?: number;
+  alto?: number;
+  es_video: boolean;
+  duracion_segundos?: number;
+  activo: boolean;
+  creado_por?: number | null;
+  creado_en: string;
+}
+
 export interface PackageItem {
   id: number;
   nombre_es: string;

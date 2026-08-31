@@ -28,6 +28,7 @@ import {
   Testimonial,
   VideoItem,
   YouTubeLiveStatus,
+  MediaAsset,
 } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'guna_vibes_super_secret_jwt_2026_san_blas';
@@ -54,6 +55,7 @@ interface DatabaseStore {
   google_reviews_cache: GoogleReview[];
   google_reviews_resumen: GoogleReviewsSummary;
   instagram_media_cache: InstagramMedia[];
+  archivos_multimedia: MediaAsset[];
 }
 
 const initialEmailConfig: EmailConfig = {
@@ -1094,16 +1096,21 @@ class Database {
       google_reviews_cache: initialGoogleReviews,
       google_reviews_resumen: initialGoogleSummary,
       instagram_media_cache: initialInstagramMedia,
+      archivos_multimedia: [],
     };
   }
 
   private loadFromDisk() {
     try {
+      this.ensureStorageDirectories();
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
           this.store = { ...this.getDefaultStore(), ...parsed };
+          if (!Array.isArray(this.store.archivos_multimedia)) {
+            this.store.archivos_multimedia = [];
+          }
           return;
         }
       }
@@ -2451,6 +2458,168 @@ class Database {
       rankingPaises,
       paisesTopPublicidad,
     };
+  }
+
+  // ==========================================
+  // MEDIA STORAGE, UPLOADS & HISTORICAL LOGS
+  // ==========================================
+
+  public ensureStorageDirectories() {
+    try {
+      const baseUploads = path.join(process.cwd(), 'uploads');
+      const now = new Date();
+      const year = String(now.getFullYear());
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+
+      const folders = [
+        baseUploads,
+        path.join(baseUploads, 'banners'),
+        path.join(baseUploads, 'banners', year, month),
+        path.join(baseUploads, 'galeria'),
+        path.join(baseUploads, 'galeria', year, month),
+        path.join(baseUploads, 'videos'),
+        path.join(baseUploads, 'videos', year, month),
+        path.join(baseUploads, 'historico'),
+        path.join(baseUploads, 'historico', year, month),
+      ];
+
+      folders.forEach((f) => {
+        if (!fs.existsSync(f)) {
+          fs.mkdirSync(f, { recursive: true });
+        }
+      });
+    } catch (err) {
+      console.warn('Error creating uploads directory structure:', err);
+    }
+  }
+
+  public saveMediaFile(options: {
+    dataUrl: string;
+    filename?: string;
+    categoria?: 'banners' | 'galeria' | 'videos' | 'historico';
+    adminId?: number | null;
+  }): MediaAsset {
+    this.ensureStorageDirectories();
+
+    const { dataUrl, filename = 'archivo-multimedia', categoria = 'galeria', adminId = null } = options;
+
+    let mimeType = 'image/jpeg';
+    let fileExt = 'jpg';
+    let base64Data = dataUrl;
+
+    if (dataUrl.startsWith('data:')) {
+      const parts = dataUrl.split(',');
+      const match = parts[0].match(/:(.*?);/);
+      if (match) {
+        mimeType = match[1];
+        if (mimeType.includes('png')) fileExt = 'png';
+        else if (mimeType.includes('webp')) fileExt = 'webp';
+        else if (mimeType.includes('gif')) fileExt = 'gif';
+        else if (mimeType.includes('svg')) fileExt = 'svg';
+        else if (mimeType.includes('mp4')) fileExt = 'mp4';
+        else if (mimeType.includes('webm')) fileExt = 'webm';
+        else if (mimeType.includes('ogg') || mimeType.includes('ogv')) fileExt = 'ogv';
+        else if (mimeType.includes('quicktime') || mimeType.includes('mov')) fileExt = 'mov';
+        else fileExt = 'jpg';
+      }
+      base64Data = parts[1] || '';
+    } else {
+      // Check filename extension if not a data URI
+      const extMatch = filename.split('.').pop()?.toLowerCase();
+      if (extMatch) {
+        fileExt = extMatch;
+        if (['mp4', 'webm', 'mov', 'ogv'].includes(fileExt)) {
+          mimeType = `video/${fileExt === 'mov' ? 'mp4' : fileExt}`;
+        }
+      }
+    }
+
+    const isVideo = mimeType.startsWith('video/') || ['mp4', 'webm', 'mov', 'ogv'].includes(fileExt);
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+
+    // Generate unique, collision-proof timestamped filename for permanent historical tracking
+    const cleanOrigName = filename
+      .toLowerCase()
+      .replace(/[^a-z0-9.]/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 50);
+    const randomHash = Math.random().toString(36).substring(2, 8);
+    const uniqueFileName = `${categoria}-${year}${month}-${Date.now()}-${randomHash}.${fileExt}`;
+
+    const targetDir = path.join(process.cwd(), 'uploads', categoria, year, month);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const fullFilePath = path.join(targetDir, uniqueFileName);
+    const publicUrl = `/uploads/${categoria}/${year}/${month}/${uniqueFileName}`;
+
+    let bufferSize = 0;
+    try {
+      const buffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(fullFilePath, buffer);
+      bufferSize = buffer.length;
+    } catch (writeErr) {
+      console.error('Error writing media to disk:', writeErr);
+      // Fallback: in case of container restriction, publicUrl falls back safely
+    }
+
+    const newId = this.store.archivos_multimedia.length > 0
+      ? Math.max(...this.store.archivos_multimedia.map((a) => a.id)) + 1
+      : 1;
+
+    const mediaAsset: MediaAsset = {
+      id: newId,
+      categoria,
+      nombre_original: filename || cleanOrigName,
+      nombre_servidor: uniqueFileName,
+      ruta_publica: publicUrl,
+      tipo_mime: mimeType,
+      tamano_bytes: bufferSize || 1024,
+      es_video: isVideo,
+      activo: true,
+      creado_por: adminId,
+      creado_en: now.toISOString(),
+    };
+
+    this.store.archivos_multimedia.unshift(mediaAsset);
+    this.saveToDisk();
+
+    this.logAudit(
+      adminId,
+      'CARGA_MULTIMEDIA_SERVIDOR',
+      `Archivo ${uniqueFileName} (${(bufferSize / 1024).toFixed(1)} KB) guardado en /uploads/${categoria}/${year}/${month}/`
+    );
+
+    return mediaAsset;
+  }
+
+  public getMediaAssets(categoria?: string): MediaAsset[] {
+    if (!this.store.archivos_multimedia) {
+      this.store.archivos_multimedia = [];
+    }
+    if (categoria && categoria !== 'all') {
+      return this.store.archivos_multimedia.filter((a) => a.categoria === categoria && a.activo !== false);
+    }
+    return this.store.archivos_multimedia.filter((a) => a.activo !== false);
+  }
+
+  public deleteMediaAsset(id: number, adminId?: number | null): boolean {
+    const asset = this.store.archivos_multimedia.find((a) => a.id === id);
+    if (!asset) return false;
+
+    asset.activo = false;
+    this.saveToDisk();
+
+    this.logAudit(
+      adminId || null,
+      'ELIMINAR_MULTIMEDIA_SERVIDOR',
+      `Archivo #${id} (${asset.nombre_servidor}) desactivado del catálogo histórico`
+    );
+
+    return true;
   }
 }
 
