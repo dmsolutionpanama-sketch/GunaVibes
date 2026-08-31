@@ -72,8 +72,11 @@ export interface BannerSlide {
   imagen_fallback: string;
   video_youtube_url: string;
   boton_texto: string;
+  boton_url?: string;
   orden: number;
   activo: boolean;
+  fotos_galeria?: string[];
+  mostrar_logo?: boolean;
 }
 
 export interface Photo {
@@ -398,6 +401,17 @@ export interface SiteConfig {
   google_places_api_key: string;
   google_reviews_ultima_sincronizacion?: string;
   logo_svg_url: string;
+  // Banner & Slider Configuration
+  banner_altura?: 'compacto' | 'estandar' | 'amplio' | 'pantalla_completa' | 'personalizado' | string;
+  banner_altura_custom?: number; // Altura en pixeles cuando es personalizado (ej. 750 a 1100)
+  banner_mostrar_logo?: boolean; // Opción para mostrar el logo sobre el slide / video
+  banner_logo_url?: string; // Logo opcional para el banner (si está vacío, usa el logo institucional)
+  banner_logo_tamano?: 'normal' | 'grande' | 'extragrande';
+  banner_logo_posicion?: 'arriba_titulo' | 'centrado' | 'flotante';
+  banner_autoplay?: boolean;
+  banner_intervalo_segundos?: number; // Segundos entre cada slide (ej. 5)
+  banner_transicion?: 'fade' | 'slide';
+  banner_video_youtube_url?: string;
   instagram_username?: string;
   instagram_access_token: string;
   instagram_business_account_id: string;

@@ -84,6 +84,16 @@ const initialConfig: SiteConfig = {
   google_places_api_key: '',
   google_reviews_ultima_sincronizacion: new Date().toISOString(),
   logo_svg_url: '',
+  banner_altura: 'amplio',
+  banner_altura_custom: 820,
+  banner_mostrar_logo: true,
+  banner_logo_url: '',
+  banner_logo_tamano: 'grande',
+  banner_logo_posicion: 'arriba_titulo',
+  banner_autoplay: true,
+  banner_intervalo_segundos: 6,
+  banner_transicion: 'fade',
+  banner_video_youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   instagram_username: 'gunavibes',
   instagram_access_token: '',
   instagram_business_account_id: 'guna_vibes_official',
@@ -255,23 +265,103 @@ const initialBannerSlides: BannerSlide[] = [
     titulo: 'Descubre las 365 islas de San Blas con Guna Vibes',
     subtitulo: 'El paraíso caribeño te espera a solo unas horas de Ciudad de Panamá',
     texto: 'Traslados 4x4 diarios y tours todo incluido con guías nativos. Cupos limitados a 14 personas por día para garantizar tu máxima comodidad.',
-    imagen_fallback: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1600&q=80',
+    imagen_fallback: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1920&q=85',
     video_youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     boton_texto: 'Reservar ahora',
     orden: 1,
     activo: true,
+    mostrar_logo: true,
   },
   {
     id: 2,
+    idioma: 'es',
+    titulo: 'Isla Perro Chico & Barco Hundido',
+    subtitulo: 'El arrecife más cristalino y el mejor snorkel de todo el Caribe panameño',
+    texto: 'Nada junto a peces tropicales y explora el emblemático barco de vapor en aguas turquesas poco profundas.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: '',
+    boton_texto: 'Ver Tour Todo Incluido',
+    orden: 2,
+    activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 3,
+    idioma: 'es',
+    titulo: 'Cayos Holandeses & Aguas Turquesas Vírgenes',
+    subtitulo: 'Aventuras exclusivas en los rincones más remotos y protegidos de Gunayala',
+    texto: 'Navegación premium, mariscos frescos o langosta de temporada y playas de arena blanca sin multitudes.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: 'https://www.youtube.com/watch?v=9No-FiEInLA',
+    boton_texto: 'Conoce Nuestros Paquetes',
+    orden: 3,
+    activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 4,
+    idioma: 'es',
+    titulo: 'Cabañas Tradicionales sobre el Mar',
+    subtitulo: 'Despierta arrullado por las olas caribeñas en un santuario natural único',
+    texto: 'Hospedaje ecológico en islas privadas atendidas directamente por familias locales de la comarca.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: '',
+    boton_texto: 'Consultar Disponibilidad',
+    orden: 4,
+    activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 5,
     idioma: 'en',
     titulo: 'Discover the 365 Islands of San Blas with Guna Vibes',
     subtitulo: 'Caribbean paradise awaits you just a few hours from Panama City',
     texto: 'Daily 4x4 transfers and all-inclusive island tours guided by local native hosts. Limited to 14 guests per day for an exclusive experience.',
-    imagen_fallback: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1600&q=80',
+    imagen_fallback: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?auto=format&fit=crop&w=1920&q=85',
     video_youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     boton_texto: 'Book Now',
     orden: 1,
     activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 6,
+    idioma: 'en',
+    titulo: 'Isla Perro Chico & Famous Shipwreck',
+    subtitulo: 'Crystal turquoise waters and world-class snorkeling in Panama',
+    texto: 'Swim among vibrant marine life and discover the iconic historic shipwreck resting in shallow waters.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: '',
+    boton_texto: 'Explore Day Tours',
+    orden: 2,
+    activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 7,
+    idioma: 'en',
+    titulo: 'Dutch Cays & Untouched White Sand Islands',
+    subtitulo: 'Exclusive adventures to the most remote paradise reefs in Gunayala',
+    texto: 'Premium speedboat expeditions, fresh lobster lunches, and crowd-free private coral atolls.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: 'https://www.youtube.com/watch?v=9No-FiEInLA',
+    boton_texto: 'View Island Packages',
+    orden: 3,
+    activo: true,
+    mostrar_logo: true,
+  },
+  {
+    id: 8,
+    idioma: 'en',
+    titulo: 'Rustic Overwater Cabins in Paradise',
+    subtitulo: 'Sleep over the Caribbean sea surrounded by coral reefs and starry skies',
+    texto: 'Eco-friendly traditional bungalows hosted with genuine Guna warmth and hospitality.',
+    imagen_fallback: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1920&q=85',
+    video_youtube_url: '',
+    boton_texto: 'Check Availability',
+    orden: 4,
+    activo: true,
+    mostrar_logo: true,
   },
 ];
 
@@ -1240,18 +1330,39 @@ class Database {
     const slide = this.store.banner_slides.find(s => s.id === id);
     if (!slide) return null;
     Object.assign(slide, data);
+    this.saveToDisk();
     this.logAudit(adminId || null, 'edito_banner', `Actualizado banner slide #${id} (${slide.idioma})`);
     return slide;
   }
 
   createBannerSlide(data: Omit<BannerSlide, 'id'>, adminId?: number): BannerSlide {
+    const maxId = this.store.banner_slides.reduce((max, s) => (s.id > max ? s.id : max), 0);
     const newSlide: BannerSlide = {
       ...data,
-      id: this.store.banner_slides.length + 1,
+      id: maxId + 1,
     };
     this.store.banner_slides.push(newSlide);
+    this.saveToDisk();
     this.logAudit(adminId || null, 'creo_banner', `Creado nuevo banner slide #${newSlide.id}`);
     return newSlide;
+  }
+
+  deleteBannerSlide(id: number, adminId?: number): boolean {
+    const idx = this.store.banner_slides.findIndex(s => s.id === id);
+    if (idx === -1) return false;
+    const removed = this.store.banner_slides.splice(idx, 1)[0];
+    this.saveToDisk();
+    this.logAudit(adminId || null, 'elimino_banner', `Eliminado banner slide #${id} (${removed.titulo})`);
+    return true;
+  }
+
+  saveBannerSlidesBatch(slides: BannerSlide[], adminId?: number): BannerSlide[] {
+    if (Array.isArray(slides)) {
+      this.store.banner_slides = slides;
+      this.saveToDisk();
+      this.logAudit(adminId || null, 'actualizo_batch_banner', `Reordenados y actualizados ${slides.length} slides del banner`);
+    }
+    return this.store.banner_slides;
   }
 
   // --- PACKAGES ---

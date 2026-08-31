@@ -710,4 +710,67 @@ export const api = {
     if (!res.ok) throw new Error('Error al cargar datos demográficos por país');
     return res.json();
   },
+
+  // Banner Slides Admin Management
+  async getAdminBannerSlides(): Promise<BannerSlide[]> {
+    const res = await fetch(`${API_BASE}/admin/banner`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Error al obtener slides del banner');
+    return res.json();
+  },
+
+  async createAdminBannerSlide(data: Partial<BannerSlide>): Promise<BannerSlide> {
+    const res = await fetch(`${API_BASE}/admin/banner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error al crear slide');
+    return json;
+  },
+
+  async updateAdminBannerSlide(id: number, data: Partial<BannerSlide>): Promise<BannerSlide> {
+    const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error al actualizar slide');
+    return json;
+  },
+
+  async deleteAdminBannerSlide(id: number): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/admin/banner/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error al eliminar slide');
+    return json;
+  },
+
+  async saveAdminBannerBatch(slides: BannerSlide[]): Promise<BannerSlide[]> {
+    const res = await fetch(`${API_BASE}/admin/banner/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ slides }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error al guardar carrusel');
+    return json;
+  },
+
+  async uploadImage(dataUrl: string, filename?: string): Promise<{ success: boolean; url: string }> {
+    const res = await fetch(`${API_BASE}/admin/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ dataUrl, filename }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Error al subir imagen');
+    return json;
+  },
 };

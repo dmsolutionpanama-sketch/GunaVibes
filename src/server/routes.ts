@@ -286,12 +286,40 @@ router.post('/admin/banner', requireAuth, (req: Request, res: Response) => {
   res.status(201).json(slide);
 });
 
+router.post('/admin/banner/batch', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const slides = db.saveBannerSlidesBatch(req.body.slides || req.body, user.id);
+  res.json(slides);
+});
+
 router.put('/admin/banner/:id', requireAuth, (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
   const user = (req as any).user;
   const slide = db.updateBannerSlide(id, req.body, user.id);
   if (!slide) return res.status(404).json({ error: 'Slide no encontrado' });
   res.json(slide);
+});
+
+router.delete('/admin/banner/:id', requireAuth, (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const user = (req as any).user;
+  const deleted = db.deleteBannerSlide(id, user.id);
+  res.json({ success: deleted });
+});
+
+// Admin Image Upload / Asset Store
+router.post('/admin/upload', requireAuth, (req: Request, res: Response) => {
+  const { dataUrl, filename, altText } = req.body;
+  if (!dataUrl) {
+    return res.status(400).json({ error: 'No image data provided' });
+  }
+  // Store or return validated URL
+  res.json({
+    success: true,
+    url: dataUrl,
+    filename: filename || 'banner-image.jpg',
+    altText: altText || 'Guna Vibes Banner Image',
+  });
 });
 
 // Admin Packages CRUD

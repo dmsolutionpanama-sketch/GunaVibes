@@ -17,6 +17,7 @@ import { OutgoingEmailTab } from './OutgoingEmailTab';
 import { CountryDemographicsTab } from './CountryDemographicsTab';
 import { SecurityCenterTab } from './SecurityCenterTab';
 import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
+import { BannerManagerTab } from './BannerManagerTab';
 import {
   LogOut,
   Settings,
@@ -40,6 +41,7 @@ import {
   Menu,
   X,
   LayoutDashboard,
+  Layers,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -54,6 +56,7 @@ type AdminTab =
   | 'demographics'
   | 'email'
   | 'leads'
+  | 'banner'
   | 'content'
   | 'packages'
   | 'google'
@@ -134,6 +137,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
     {
       groupTitle: 'CONTENIDOS & MULTIMEDIA',
       items: [
+        { id: 'banner', label: 'Banner & Carrusel Hero', icon: Layers, highlight: true },
         { id: 'content', label: 'Editor de Contenidos (CMS)', icon: FileEdit },
         { id: 'packages', label: 'Tours & Paquetes San Blas', icon: Package },
       ],
@@ -318,6 +322,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
           {activeTab === 'demographics' && <CountryDemographicsTab />}
           {activeTab === 'email' && <OutgoingEmailTab />}
           {activeTab === 'leads' && <LeadsTab />}
+          {activeTab === 'banner' && <BannerManagerTab />}
           {activeTab === 'content' && <ContentManagerTab />}
           {activeTab === 'packages' && <PackagesTab />}
           {activeTab === 'instagram' && <InstagramTab />}
