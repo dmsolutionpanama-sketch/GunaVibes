@@ -819,3 +819,65 @@ router.put('/admin/whatsapp/logs/:id/status', requireAuth, (req: Request, res: R
   res.json(updated);
 });
 
+// --- GOOGLE CALENDAR & WORKSPACE ROUTES ---
+router.get('/admin/google-calendar/config', requireAuth, (_req: Request, res: Response) => {
+  const config = db.getGoogleCalendarConfig();
+  res.json(config);
+});
+
+router.post('/admin/google-calendar/config', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const updated = db.updateGoogleCalendarConfig(req.body, user.id);
+  res.json(updated);
+});
+
+router.post('/admin/google-calendar/sync/:id', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const id = parseInt(req.params.id, 10);
+  try {
+    const result = db.syncReservationToGoogleCalendar(id, user.id);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Error sincronizando con Google Calendar' });
+  }
+});
+
+router.post('/admin/google-calendar/sync-all', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const result = db.syncAllReservationsToGoogleCalendar(user.id);
+  res.json(result);
+});
+
+router.post('/admin/google-calendar/test-event', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const result = db.testGoogleCalendarEvent({
+    ...req.body,
+    adminId: user.id,
+  });
+  res.json(result);
+});
+
+// --- DIAGNÓSTICO INTEGRAL DE CONEXIONES EXTERNAS ---
+router.get('/admin/diagnostics/connections', requireAuth, (_req: Request, res: Response) => {
+  const report = db.getSystemDiagnosticsReport();
+  res.json(report);
+});
+
+router.post('/admin/diagnostics/test-connection', requireAuth, (req: Request, res: Response) => {
+  const { connection_id } = req.body;
+  const report = db.getSystemDiagnosticsReport();
+  const conn = report.conexiones.find((c) => c.id === connection_id);
+
+  if (!conn) {
+    return res.status(404).json({ error: 'Conexión no encontrada' });
+  }
+
+  res.json({
+    success: true,
+    connection: conn,
+    timestamp: new Date().toISOString(),
+    message: `Diagnóstico para '${conn.nombre}' ejecutado con éxito. Estado: ${conn.estado.toUpperCase()}.`,
+  });
+});
+
+

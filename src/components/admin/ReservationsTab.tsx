@@ -379,6 +379,19 @@ export const ReservationsTab: React.FC = () => {
                         <span>Link Pago</span>
                       </button>
 
+                      {/* Google Calendar Link */}
+                      {res.google_calendar_html_link && (
+                        <a
+                          href={res.google_calendar_html_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-[#0E9AA7] border border-cyan-200 transition-colors inline-flex items-center"
+                          title="Abrir evento en Google Calendar"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </a>
+                      )}
+
                       {/* Detail view */}
                       <button
                         onClick={() => setSelectedRes(res)}
@@ -625,6 +638,33 @@ export const ReservationsTab: React.FC = () => {
                   <p>{selectedRes.comentarios}</p>
                 </div>
               )}
+
+              {/* Google Calendar Box */}
+              <div className="sm:col-span-2 p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 text-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-[#123C4B] font-bold text-xs">
+                    <Calendar className="w-4 h-4 text-[#0E9AA7]" />
+                    <span>Sincronización con Google Calendar</span>
+                  </div>
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    {selectedRes.google_calendar_event_id
+                      ? `Evento agendado (${selectedRes.google_calendar_event_id})`
+                      : 'Listo para sincronizar'}
+                  </p>
+                </div>
+
+                {selectedRes.google_calendar_html_link && (
+                  <a
+                    href={selectedRes.google_calendar_html_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 rounded-xl bg-[#0E9AA7] text-white font-bold text-xs hover:bg-[#0c8590] inline-flex items-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <span>Abrir en Calendar</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Email Dispatch History Log */}

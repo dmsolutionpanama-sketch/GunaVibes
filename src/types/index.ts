@@ -167,6 +167,9 @@ export interface Reservation {
   estado_embudo?: LeadFunnelStage;
   tiempo_respuesta_min?: number;
   notas_interaccion?: string;
+  google_calendar_event_id?: string;
+  google_calendar_html_link?: string;
+  google_calendar_sincronizado_en?: string;
   creado_en: string;
   actualizado_en?: string;
   historial_correos?: PaymentEmailLog[];
@@ -440,6 +443,7 @@ export interface SiteConfig {
   smtp_pass?: string;
   smtp_from?: string;
   email_config?: EmailConfig;
+  google_calendar_config?: GoogleCalendarConfig;
   two_factor_enabled?: boolean;
   redes_sociales?: {
     instagram?: string;
@@ -494,3 +498,48 @@ export interface CapacityCheckResponse {
   bloqueado?: boolean;
   motivo_bloqueo?: string;
 }
+
+export interface GoogleCalendarConfig {
+  conectado: boolean;
+  calendar_id: string; // 'primary' or specific calendar email (e.g. 'natechinnovations@gmail.com')
+  google_user_email: string;
+  client_id?: string;
+  access_token?: string;
+  refresh_token?: string;
+  token_expiry?: number | string;
+  auto_sync_on_reservation: boolean;
+  recordatorios_minutos: number[]; // [1440, 120] (24h y 2h antes)
+  color_id?: string; // '6' for orange, '7' for cyan, etc.
+  titulo_plantilla: string;
+  descripcion_plantilla: string;
+  total_eventos_sincronizados: number;
+  ultima_sincronizacion?: string;
+  ultimo_error?: string;
+}
+
+export interface ConnectionHealthItem {
+  id: string;
+  nombre: string;
+  categoria: 'google_workspace' | 'comunicacion' | 'redes_sociales' | 'pagos' | 'datos_externos';
+  icono: string;
+  estado: 'operativo' | 'alerta' | 'desconectado' | 'en_progreso';
+  latencia_ms?: number;
+  mensaje: string;
+  detalles: string;
+  requiere_accion: boolean;
+  instrucciones_credenciales?: string;
+  enlace_accion?: string;
+  ultima_verificacion: string;
+}
+
+export interface SystemDiagnosticsReport {
+  timestamp: string;
+  estado_general: 'excelente' | 'bueno' | 'requiere_atencion' | 'critico';
+  total_conexiones: number;
+  activas: number;
+  alertas: number;
+  desconectadas: number;
+  conexiones: ConnectionHealthItem[];
+  consejos_seguridad: string[];
+}
+

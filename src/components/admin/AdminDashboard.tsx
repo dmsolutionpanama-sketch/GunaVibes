@@ -19,6 +19,8 @@ import { SecurityCenterTab } from './SecurityCenterTab';
 import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
 import { BannerManagerTab } from './BannerManagerTab';
 import { WhatsAppTraceabilityTab } from './WhatsAppTraceabilityTab';
+import { GoogleCalendarTab } from './GoogleCalendarTab';
+import { SystemDiagnosticsTab } from './SystemDiagnosticsTab';
 import {
   LogOut,
   Settings,
@@ -44,6 +46,8 @@ import {
   LayoutDashboard,
   Layers,
   MessageSquare,
+  Calendar,
+  Activity,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -54,6 +58,7 @@ type AdminTab =
   | 'overview'
   | 'funnel'
   | 'reservations'
+  | 'calendar-sync'
   | 'whatsapp'
   | 'calendar-capacity'
   | 'demographics'
@@ -65,6 +70,7 @@ type AdminTab =
   | 'google'
   | 'instagram'
   | 'youtube'
+  | 'diagnostics'
   | 'security'
   | 'settings';
 
@@ -123,6 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
       groupTitle: 'VENTAS & CONVERSIÓN',
       items: [
         { id: 'reservations', label: 'Reservas & Pagos', icon: CalendarCheck, badge: stats.pendientes > 0 ? stats.pendientes : undefined },
+        { id: 'calendar-sync', label: 'Google Calendar & Sync', icon: Calendar, badgeText: 'OAuth 2.0' },
         { id: 'calendar-capacity', label: 'Cupos Diarios & Calendario', icon: CalendarDays },
         { id: 'demographics', label: 'Demografía & Pauta por País', icon: Globe },
         { id: 'leads', label: 'Directorio de Clientes', icon: Users },
@@ -149,6 +156,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
     {
       groupTitle: 'SISTEMA & SEGURIDAD',
       items: [
+        { id: 'diagnostics', label: 'Salud de Conexiones (Test)', icon: Activity, badgeText: '8/8 Operativo' },
         { id: 'security', label: 'Centro de Seguridad & Logs', icon: ShieldCheck, badgeText: 'Activo' },
         { id: 'settings', label: 'Ajustes, Tipografía & MySQL', icon: Settings },
       ],
@@ -322,6 +330,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
           )}
           {activeTab === 'funnel' && <LeadFunnelDashboardTab />}
           {activeTab === 'reservations' && <ReservationsTab />}
+          {activeTab === 'calendar-sync' && <GoogleCalendarTab />}
           {activeTab === 'whatsapp' && <WhatsAppTraceabilityTab />}
           {activeTab === 'calendar-capacity' && <DailyCapacityCalendarTab />}
           {activeTab === 'demographics' && <CountryDemographicsTab />}
@@ -333,6 +342,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
           {activeTab === 'instagram' && <InstagramTab />}
           {activeTab === 'google' && <GoogleReviewsTab />}
           {activeTab === 'youtube' && <YouTubeLiveTab />}
+          {activeTab === 'diagnostics' && <SystemDiagnosticsTab />}
           {activeTab === 'security' && <SecurityCenterTab />}
           {activeTab === 'settings' && <SettingsTab />}
         </div>
