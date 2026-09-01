@@ -102,7 +102,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-12 border-b border-white/10">
           {/* Brand Info */}
           <div className="space-y-4">
-            <Logo isLight className="h-10" />
+            <Logo variant="footer" isLight />
             <p className="text-stone-300 text-sm leading-relaxed">
               {t('footer_desc')}
             </p>

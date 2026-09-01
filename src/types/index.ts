@@ -421,6 +421,14 @@ export interface SiteConfig {
   google_places_api_key: string;
   google_reviews_ultima_sincronizacion?: string;
   logo_svg_url: string;
+  logo_oficial_url?: string;
+  // Logo dimensions for different parts of the application
+  logo_altura_navbar?: number; // Height in px for Navbar (default 48px, range 24-100)
+  logo_altura_footer?: number; // Height in px for Footer (default 56px, range 28-120)
+  logo_altura_admin?: number; // Height in px for Admin panel (default 44px, range 24-80)
+  logo_altura_modal?: number; // Height in px for Modals/Vouchers (default 40px, range 24-80)
+  logo_mostrar_texto?: boolean; // Whether to show the text next to custom logo image
+
   // Banner & Slider Configuration
   banner_altura?: 'compacto' | 'estandar' | 'amplio' | 'pantalla_completa' | 'personalizado' | string;
   banner_altura_custom?: number; // Altura en pixeles cuando es personalizado (ej. 750 a 1100)
@@ -432,6 +440,23 @@ export interface SiteConfig {
   banner_intervalo_segundos?: number; // Segundos entre cada slide (ej. 5)
   banner_transicion?: 'fade' | 'slide';
   banner_video_youtube_url?: string;
+
+  // Banner Overlay & Gradient Customization (Transparency control for video clarity)
+  banner_overlay_opacidad?: number; // 0 to 100% (default 40% for clear video visibility)
+  banner_overlay_estilo?: 'cinematico_suave' | 'degradado_lateral' | 'degradado_inferior' | 'radial_suave' | 'minimo_video_claro' | 'solido_ligero' | string;
+  banner_overlay_color?: string; // Base color hex (default #09222B)
+  banner_overlay_blur?: number; // 0 to 10px
+
+  // Google Ecosystem & Tools Suite
+  google_analytics_id?: string; // G-XXXXXXXXXX
+  google_analytics_activo?: boolean;
+  google_analytics_track_reservations?: boolean;
+  google_tag_manager_id?: string; // GTM-XXXXXXX
+  google_tag_manager_activo?: boolean;
+  google_search_console_tag?: string; // Verification code or meta tag
+  google_maps_api_key?: string;
+  google_site_verification?: string;
+
   instagram_username?: string;
   instagram_access_token: string;
   instagram_business_account_id: string;

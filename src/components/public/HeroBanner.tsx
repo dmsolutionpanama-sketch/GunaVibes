@@ -221,9 +221,93 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           </div>
         )}
 
-        {/* Cinematic Gradient Overlays for Maximum Text & Logo Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09222b]/95 via-[#0c2f3c]/80 to-[#123c4b]/55 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#081b22] via-transparent to-black/45 pointer-events-none" />
+        {/* Dynamic Adjustable Overlays for Customer Video Clarity & Maximum Text Legibility */}
+        {(() => {
+          const rawOpacity = config?.banner_overlay_opacidad !== undefined ? config.banner_overlay_opacidad : 60;
+          const alpha = Math.max(0, Math.min(100, rawOpacity)) / 100;
+          const overlayStyle = config?.banner_overlay_estilo || 'cinematico_suave';
+          const overlayBlur = config?.banner_overlay_blur || 0;
+          const blurStyle = overlayBlur > 0 ? { backdropFilter: `blur(${overlayBlur}px)` } : {};
+
+          if (overlayStyle === 'degradado_lateral') {
+            return (
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `linear-gradient(to right, rgba(9, 34, 43, ${alpha}) 0%, rgba(12, 47, 60, ${alpha * 0.75}) 40%, rgba(18, 60, 75, ${alpha * 0.25}) 70%, transparent 100%)`,
+                  ...blurStyle,
+                }}
+              />
+            );
+          }
+
+          if (overlayStyle === 'degradado_inferior') {
+            return (
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `linear-gradient(to top, rgba(9, 34, 43, ${alpha}) 0%, rgba(9, 34, 43, ${alpha * 0.5}) 50%, transparent 100%)`,
+                  ...blurStyle,
+                }}
+              />
+            );
+          }
+
+          if (overlayStyle === 'radial_suave') {
+            return (
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `radial-gradient(circle at center, transparent 30%, rgba(9, 34, 43, ${alpha}) 100%)`,
+                  ...blurStyle,
+                }}
+              />
+            );
+          }
+
+          if (overlayStyle === 'minimo_video_claro') {
+            return (
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `linear-gradient(to right, rgba(9, 34, 43, ${alpha * 0.6}) 0%, rgba(9, 34, 43, ${alpha * 0.25}) 50%, transparent 100%)`,
+                  ...blurStyle,
+                }}
+              />
+            );
+          }
+
+          if (overlayStyle === 'solido_ligero') {
+            return (
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  backgroundColor: `rgba(9, 34, 43, ${alpha})`,
+                  ...blurStyle,
+                }}
+              />
+            );
+          }
+
+          // Default: cinematico_suave (Dual subtle gradient)
+          return (
+            <>
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `linear-gradient(to right, rgba(9, 34, 43, ${alpha * 1.1}) 0%, rgba(12, 47, 60, ${alpha * 0.85}) 45%, rgba(18, 60, 75, ${alpha * 0.45}) 80%, transparent 100%)`,
+                  ...blurStyle,
+                }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none transition-all duration-500"
+                style={{
+                  background: `linear-gradient(to top, rgba(8, 27, 34, ${alpha * 0.9}) 0%, transparent 60%, rgba(0, 0, 0, ${alpha * 0.35}) 100%)`,
+                }}
+              />
+            </>
+          );
+        })()}
       </div>
 
       {/* Top Floating Logo / Overlay Badge (when positioned at top-center or floating) */}

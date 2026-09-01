@@ -20,6 +20,7 @@ import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
 import { BannerManagerTab } from './BannerManagerTab';
 import { WhatsAppTraceabilityTab } from './WhatsAppTraceabilityTab';
 import { GoogleCalendarTab } from './GoogleCalendarTab';
+import { GoogleEcosystemTab } from './GoogleEcosystemTab';
 import { SystemDiagnosticsTab } from './SystemDiagnosticsTab';
 import {
   LogOut,
@@ -48,6 +49,7 @@ import {
   MessageSquare,
   Calendar,
   Activity,
+  BarChart3,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -68,6 +70,7 @@ type AdminTab =
   | 'content'
   | 'packages'
   | 'google'
+  | 'google-suite'
   | 'instagram'
   | 'youtube'
   | 'diagnostics'
@@ -157,6 +160,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
       groupTitle: 'SISTEMA & SEGURIDAD',
       items: [
         { id: 'diagnostics', label: 'Salud de Conexiones (Test)', icon: Activity, badgeText: '8/8 Operativo' },
+        { id: 'google-suite', label: 'Google Analytics & Herramientas', icon: BarChart3, badgeText: 'Oficial' },
         { id: 'security', label: 'Centro de Seguridad & Logs', icon: ShieldCheck, badgeText: 'Activo' },
         { id: 'settings', label: 'Ajustes, Tipografía & MySQL', icon: Settings },
       ],
@@ -341,6 +345,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
           {activeTab === 'packages' && <PackagesTab />}
           {activeTab === 'instagram' && <InstagramTab />}
           {activeTab === 'google' && <GoogleReviewsTab />}
+          {activeTab === 'google-suite' && <GoogleEcosystemTab />}
           {activeTab === 'youtube' && <YouTubeLiveTab />}
           {activeTab === 'diagnostics' && <SystemDiagnosticsTab />}
           {activeTab === 'security' && <SecurityCenterTab />}

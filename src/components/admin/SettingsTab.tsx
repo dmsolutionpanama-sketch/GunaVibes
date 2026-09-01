@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
 import { AuditLog } from '../../types';
+import { Logo } from '../layout/Logo';
 import {
   Palette,
   Settings,
@@ -30,6 +31,11 @@ import {
   Monitor,
   UserCheck,
   Eye,
+  Image as ImageIcon,
+  Upload,
+  BarChart3,
+  Globe,
+  Sliders,
 } from 'lucide-react';
 
 const PRESET_THEMES = [
@@ -366,6 +372,23 @@ export const SettingsTab: React.FC = () => {
   const [whatsapp, setWhatsapp] = useState(config?.whatsapp || '+507 6369-1775');
   const [direccion, setDireccion] = useState(config?.direccion || 'Calle Primera, casa 36, Urb. Nueva Barriada, Tocumen. Panamá');
 
+  // Logo settings & responsive dimension controls
+  const [logoOficialUrl, setLogoOficialUrl] = useState(config?.logo_oficial_url || '');
+  const [logoAlturaNavbar, setLogoAlturaNavbar] = useState<number>(config?.logo_altura_navbar || 48);
+  const [logoAlturaFooter, setLogoAlturaFooter] = useState<number>(config?.logo_altura_footer || 54);
+  const [logoAlturaAdmin, setLogoAlturaAdmin] = useState<number>(config?.logo_altura_admin || 42);
+  const [logoAlturaModal, setLogoAlturaModal] = useState<number>(config?.logo_altura_modal || 40);
+  const [logoMostrarTexto, setLogoMostrarTexto] = useState<boolean>(config?.logo_mostrar_texto !== false);
+  const logoUploadRef = useRef<HTMLInputElement>(null);
+
+  // Google Analytics, Tag Manager & SEO
+  const [gaId, setGaId] = useState(config?.google_analytics_id || '');
+  const [gaActive, setGaActive] = useState(config?.google_analytics_activo !== false);
+  const [gtmId, setGtmId] = useState(config?.google_tag_manager_id || '');
+  const [gtmActive, setGtmActive] = useState(config?.google_tag_manager_activo !== false);
+  const [gSearchConsole, setGSearchConsole] = useState(config?.google_search_console_tag || '');
+  const [gSiteVerification, setGSiteVerification] = useState(config?.google_site_verification || '');
+
   // External links
   const [externalLinks, setExternalLinks] = useState(config?.enlaces_externos_menu || []);
   const [newLinkLabel, setNewLinkLabel] = useState('');
@@ -392,6 +415,18 @@ export const SettingsTab: React.FC = () => {
       setWhatsapp(config.whatsapp);
       setDireccion(config.direccion);
       setExternalLinks(config.enlaces_externos_menu || []);
+      setLogoOficialUrl(config.logo_oficial_url || '');
+      setLogoAlturaNavbar(config.logo_altura_navbar || 48);
+      setLogoAlturaFooter(config.logo_altura_footer || 54);
+      setLogoAlturaAdmin(config.logo_altura_admin || 42);
+      setLogoAlturaModal(config.logo_altura_modal || 40);
+      setLogoMostrarTexto(config.logo_mostrar_texto !== false);
+      setGaId(config.google_analytics_id || '');
+      setGaActive(config.google_analytics_activo !== false);
+      setGtmId(config.google_tag_manager_id || '');
+      setGtmActive(config.google_tag_manager_activo !== false);
+      setGSearchConsole(config.google_search_console_tag || '');
+      setGSiteVerification(config.google_site_verification || '');
     }
   }, [config]);
 
@@ -544,6 +579,20 @@ export const SettingsTab: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const result = uploadEvent.target?.result as string;
+      if (result) {
+        setLogoOficialUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -574,6 +623,18 @@ export const SettingsTab: React.FC = () => {
         whatsapp,
         direccion,
         enlaces_externos_menu: externalLinks,
+        logo_oficial_url: logoOficialUrl.trim(),
+        logo_altura_navbar: Number(logoAlturaNavbar),
+        logo_altura_footer: Number(logoAlturaFooter),
+        logo_altura_admin: Number(logoAlturaAdmin),
+        logo_altura_modal: Number(logoAlturaModal),
+        logo_mostrar_texto: logoMostrarTexto,
+        google_analytics_id: gaId.trim(),
+        google_analytics_activo: gaActive,
+        google_tag_manager_id: gtmId.trim(),
+        google_tag_manager_activo: gtmActive,
+        google_search_console_tag: gSearchConsole.trim(),
+        google_site_verification: gSiteVerification.trim(),
       });
 
       setSaveSuccess(true);
@@ -1205,7 +1266,246 @@ export const SettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. GENERAL SETTINGS & CAPACITY LIMIT */}
+      {/* 4. LOGOTIPO OFICIAL & CONTROL DE ALTURAS RESPONSIVAS */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-stone-200 space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-stone-200">
+          <div>
+            <h3 className="text-xl font-bold font-heading text-stone-900 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-[#0E9AA7]" />
+              <span>Logotipo de Guna Vibes & Control de Tamaños</span>
+              <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full uppercase">
+                Ajustable
+              </span>
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Sube el logo oficial de la marca y ajusta su tamaño independiente para Navbar, Footer, Panel Admin y Modales.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              ref={logoUploadRef}
+              accept="image/*"
+              onChange={handleLogoFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => logoUploadRef.current?.click()}
+              className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-2xl border border-stone-300 flex items-center gap-2 cursor-pointer transition-all"
+            >
+              <Upload className="w-4 h-4 text-[#0E9AA7]" />
+              <span>Subir Archivo de Logo (PNG/SVG)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Logo URL Input & Brand Text Toggle */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+              URL Directa del Logotipo Oficial (Opcional si ya lo subió)
+            </label>
+            <input
+              type="text"
+              value={logoOficialUrl}
+              onChange={(e) => setLogoOficialUrl(e.target.value)}
+              placeholder="https://... o usa el icono nativo de arte Guna Mola con velero caribeño"
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-300 text-xs font-mono focus:ring-2 focus:ring-[#0E9AA7]"
+            />
+            <p className="text-[11px] text-stone-400">
+              Si se deja vacío, el sistema renderiza el isotipo vectorial Mola/Velero con colores nativos de la marca.
+            </p>
+          </div>
+
+          <div className="space-y-1.5 bg-stone-50 p-4 rounded-2xl border border-stone-200 flex flex-col justify-center">
+            <label className="block text-xs font-bold text-stone-700">
+              Texto Tipográfico "Guna Vibes"
+            </label>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-stone-500">Mostrar al lado del icono:</span>
+              <button
+                type="button"
+                onClick={() => setLogoMostrarTexto(!logoMostrarTexto)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                  logoMostrarTexto ? 'bg-[#0E9AA7]' : 'bg-stone-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    logoMostrarTexto ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 4 Height Adjusters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          {/* Navbar Height */}
+          <div className="p-4 rounded-2xl bg-teal-50/40 border border-teal-200 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-teal-900">
+              <span>Barra de Navegación (Header)</span>
+              <span className="font-mono bg-white px-2 py-0.5 rounded border border-teal-200">{logoAlturaNavbar}px</span>
+            </div>
+            <input
+              type="range"
+              min={28}
+              max={90}
+              step={2}
+              value={logoAlturaNavbar}
+              onChange={(e) => setLogoAlturaNavbar(Number(e.target.value))}
+              className="w-full accent-[#0E9AA7] cursor-pointer"
+            />
+            <div className="h-14 bg-white rounded-xl border border-teal-100 flex items-center justify-center p-2 overflow-hidden">
+              <Logo customHeight={logoAlturaNavbar} hideText={!logoMostrarTexto} />
+            </div>
+          </div>
+
+          {/* Footer Height */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+              <span>Pie de Página (Footer)</span>
+              <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">{logoAlturaFooter}px</span>
+            </div>
+            <input
+              type="range"
+              min={30}
+              max={110}
+              step={2}
+              value={logoAlturaFooter}
+              onChange={(e) => setLogoAlturaFooter(Number(e.target.value))}
+              className="w-full accent-slate-800 cursor-pointer"
+            />
+            <div className="h-14 bg-[#123C4B] rounded-xl border border-slate-700 flex items-center justify-center p-2 overflow-hidden">
+              <Logo customHeight={logoAlturaFooter} isLight={true} hideText={!logoMostrarTexto} />
+            </div>
+          </div>
+
+          {/* Admin Height */}
+          <div className="p-4 rounded-2xl bg-amber-50/40 border border-amber-200 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+              <span>Panel de Administración</span>
+              <span className="font-mono bg-white px-2 py-0.5 rounded border border-amber-200">{logoAlturaAdmin}px</span>
+            </div>
+            <input
+              type="range"
+              min={24}
+              max={80}
+              step={2}
+              value={logoAlturaAdmin}
+              onChange={(e) => setLogoAlturaAdmin(Number(e.target.value))}
+              className="w-full accent-amber-600 cursor-pointer"
+            />
+            <div className="h-14 bg-white rounded-xl border border-amber-100 flex items-center justify-center p-2 overflow-hidden">
+              <Logo customHeight={logoAlturaAdmin} hideText={!logoMostrarTexto} />
+            </div>
+          </div>
+
+          {/* Modal Height */}
+          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-stone-900">
+              <span>Modales & Vouchers</span>
+              <span className="font-mono bg-white px-2 py-0.5 rounded border border-stone-200">{logoAlturaModal}px</span>
+            </div>
+            <input
+              type="range"
+              min={24}
+              max={80}
+              step={2}
+              value={logoAlturaModal}
+              onChange={(e) => setLogoAlturaModal(Number(e.target.value))}
+              className="w-full accent-stone-700 cursor-pointer"
+            />
+            <div className="h-14 bg-stone-100 rounded-xl border border-stone-200 flex items-center justify-center p-2 overflow-hidden">
+              <Logo customHeight={logoAlturaModal} hideText={!logoMostrarTexto} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. GOOGLE ANALYTICS, TAG MANAGER & SEARCH CONSOLE */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-stone-200 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+          <div>
+            <h3 className="text-xl font-bold font-heading text-stone-900 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <span>Conexión con Google Analytics & Herramientas de Rastreo</span>
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Integra tu cuenta de Google Analytics 4 y Google Tag Manager para métricas de tráfico y conversiones.
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-blue-700 bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
+            <Globe className="w-4 h-4" />
+            <span className="font-bold">Google Ecosystem</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-2 p-4 rounded-2xl bg-stone-50 border border-stone-200">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-stone-800">
+                Google Analytics 4 Measurement ID (GA4):
+              </label>
+              <button
+                type="button"
+                onClick={() => setGaActive(!gaActive)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
+                  gaActive ? 'bg-blue-600' : 'bg-stone-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    gaActive ? 'translate-x-4.5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={gaId}
+              onChange={(e) => setGaId(e.target.value)}
+              placeholder="G-XXXXXXXXXX"
+              className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-stone-400">Rastreo de páginas vistas y carritos de reserva.</p>
+          </div>
+
+          <div className="space-y-2 p-4 rounded-2xl bg-stone-50 border border-stone-200">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-stone-800">
+                Google Tag Manager Container ID (GTM):
+              </label>
+              <button
+                type="button"
+                onClick={() => setGtmActive(!gtmActive)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
+                  gtmActive ? 'bg-blue-600' : 'bg-stone-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    gtmActive ? 'translate-x-4.5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={gtmId}
+              onChange={(e) => setGtmId(e.target.value)}
+              placeholder="GTM-XXXXXXX"
+              className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-xs font-mono focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-[11px] text-stone-400">Contenedor de etiquetas centralizado.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. GENERAL SETTINGS & CAPACITY LIMIT */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-stone-200 space-y-6">
         <h3 className="text-xl font-bold font-heading text-stone-900 flex items-center gap-2">
           <Settings className="w-5 h-5 text-[#0E9AA7]" />

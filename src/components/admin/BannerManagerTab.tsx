@@ -67,6 +67,15 @@ export const BannerManagerTab: React.FC = () => {
   const [bannerIntervalo, setBannerIntervalo] = useState<number>(config?.banner_intervalo_segundos || 6);
   const [bannerVideoGlobal, setBannerVideoGlobal] = useState<string>(config?.banner_video_youtube_url || '');
 
+  // Banner Overlay & Gradient Transparency state
+  const [bannerOverlayOpacidad, setBannerOverlayOpacidad] = useState<number>(
+    config?.banner_overlay_opacidad !== undefined ? config.banner_overlay_opacidad : 55
+  );
+  const [bannerOverlayEstilo, setBannerOverlayEstilo] = useState<string>(
+    config?.banner_overlay_estilo || 'cinematico_suave'
+  );
+  const [bannerOverlayBlur, setBannerOverlayBlur] = useState<number>(config?.banner_overlay_blur || 0);
+
   // Direct quick YouTube state
   const [quickYoutubeInput, setQuickYoutubeInput] = useState<string>(config?.banner_video_youtube_url || '');
   const [savingQuickVideo, setSavingQuickVideo] = useState(false);
@@ -160,10 +169,13 @@ export const BannerManagerTab: React.FC = () => {
         banner_logo_posicion: bannerLogoPosicion,
         banner_intervalo_segundos: Number(bannerIntervalo),
         banner_video_youtube_url: bannerVideoGlobal.trim(),
+        banner_overlay_opacidad: Number(bannerOverlayOpacidad),
+        banner_overlay_estilo: bannerOverlayEstilo,
+        banner_overlay_blur: Number(bannerOverlayBlur),
       });
 
       if (refreshConfig) await refreshConfig();
-      showSuccess('¡Configuración general del banner guardada y aplicada con éxito!');
+      showSuccess('¡Configuración general del banner, degradado y logo guardada y aplicada con éxito!');
     } catch (err: any) {
       showError(err.message || 'Error al guardar configuración del banner');
     } finally {
@@ -765,6 +777,126 @@ export const BannerManagerTab: React.FC = () => {
                 El carrusel rota suavemente entre todas las fotos activas y se pausa automáticamente al colocar el cursor encima.
               </p>
             </div>
+
+            {/* Control: DEGRADADO, TRANSPARENCIA Y CLARIDAD DEL VIDEO DEL CLIENTE */}
+            <div className="space-y-4 p-5 rounded-2xl bg-gradient-to-br from-teal-50/70 to-stone-50 border border-teal-200 lg:col-span-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                  <Sliders className="w-4.5 h-4.5 text-[#0E9AA7]" />
+                  <span>Degradado, Transparencia & Claridad del Video / Banner</span>
+                  <span className="text-[10px] bg-teal-600 text-white font-bold px-2 py-0.5 rounded-md uppercase">
+                    Ajustable
+                  </span>
+                </label>
+                <span className="text-xs font-mono font-bold text-[#0E9AA7] bg-white px-2.5 py-1 rounded-lg border border-teal-200 shadow-xs">
+                  Opacidad: {bannerOverlayOpacidad}% | Desenfoque: {bannerOverlayBlur}px
+                </span>
+              </div>
+
+              <p className="text-xs text-stone-600">
+                Ajusta la intensidad de la sombra o degradado para que se pueda leer el texto perfectamente y a la vez se aprecie con total nitidez el detalle y color del video subido.
+              </p>
+
+              {/* Grid of Styles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
+                {[
+                  {
+                    id: 'cinematico_suave',
+                    title: 'Cinemático Suave',
+                    desc: 'Balanceado para leer textos con sombra sutil de fondo',
+                  },
+                  {
+                    id: 'degradado_lateral',
+                    title: 'Degradado Lateral Izquierdo',
+                    desc: 'Oscuridad a la izquierda para el texto, video 100% libre a la derecha',
+                  },
+                  {
+                    id: 'minimo_video_claro',
+                    title: 'Mínimo / Video Ultra Claro',
+                    desc: 'Máxima transparencia para apreciar el video del cliente en HD',
+                  },
+                  {
+                    id: 'radial_vinyeta',
+                    title: 'Radial / Viñeta',
+                    desc: 'Bordes suaves oscurecidos, centro totalmente despejado',
+                  },
+                  {
+                    id: 'degradado_inferior',
+                    title: 'Degradado Inferior',
+                    desc: 'Base inferior sombreada para botones y logos',
+                  },
+                  {
+                    id: 'solido_translucido',
+                    title: 'Translúcido Parejo',
+                    desc: 'Capa suave y uniforme en toda la pantalla',
+                  },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setBannerOverlayEstilo(st.id)}
+                    className={`p-3.5 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                      bannerOverlayEstilo === st.id
+                        ? 'border-[#0E9AA7] bg-white shadow-md ring-2 ring-[#0E9AA7]/20 text-stone-900'
+                        : 'border-stone-200 bg-white/70 hover:bg-white text-stone-600'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold flex items-center justify-between">
+                      <span>{st.title}</span>
+                      {bannerOverlayEstilo === st.id && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0E9AA7]" />
+                      )}
+                    </span>
+                    <span className="text-[11px] text-stone-500 mt-1">{st.desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Sliders for Opacity and Blur */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-stone-200">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-stone-700">Intensidad / Opacidad de la Sombra:</span>
+                    <span className="font-mono font-extrabold text-[#0E9AA7]">{bannerOverlayOpacidad}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={bannerOverlayOpacidad}
+                    onChange={(e) => setBannerOverlayOpacidad(Number(e.target.value))}
+                    className="w-full accent-[#0E9AA7] cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-stone-400 font-mono">
+                    <span>0% (100% Transparente / Puro Video)</span>
+                    <span>50% (Equilibrado)</span>
+                    <span>100% (Oscuro)</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-stone-700">Filtro de Desenfoque / Blur de Fondo:</span>
+                    <span className="font-mono font-extrabold text-[#0E9AA7]">{bannerOverlayBlur} px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={bannerOverlayBlur}
+                    onChange={(e) => setBannerOverlayBlur(Number(e.target.value))}
+                    className="w-full accent-[#0E9AA7] cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-stone-400 font-mono">
+                    <span>0 px (Nítido / Sin desenfoque)</span>
+                    <span>3 px (Suave)</span>
+                    <span>10 px (Glass)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Save Button for General Settings */}
@@ -780,7 +912,7 @@ export const BannerManagerTab: React.FC = () => {
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Guardar Ajustes de Altura y Logo</span>
+                  <span>Guardar Ajustes de Banner, Degradado y Logo</span>
                 </>
               )}
             </button>

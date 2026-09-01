@@ -71,6 +71,53 @@ function MainApp() {
     loadPublicData();
   }, [language]);
 
+  // Google Analytics & Google Tag Manager Dynamic Script Injection
+  useEffect(() => {
+    if (!config) return;
+
+    // 1. Google Analytics 4 (gtag.js)
+    const gaId = config.google_analytics_id?.trim();
+    if (gaId && config.google_analytics_activo !== false && !document.getElementById('ga4-script')) {
+      const script = document.createElement('script');
+      script.id = 'ga4-script';
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      document.head.appendChild(script);
+
+      const initScript = document.createElement('script');
+      initScript.id = 'ga4-init';
+      initScript.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '${gaId}', { 'send_page_view': true });
+      `;
+      document.head.appendChild(initScript);
+    }
+
+    // 2. Google Tag Manager (GTM)
+    const gtmId = config.google_tag_manager_id?.trim();
+    if (gtmId && config.google_tag_manager_activo !== false && !document.getElementById('gtm-script')) {
+      const gtmScript = document.createElement('script');
+      gtmScript.id = 'gtm-script';
+      gtmScript.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'dataLayer','${gtmId}');`;
+      document.head.appendChild(gtmScript);
+    }
+
+    // 3. Google Site Verification / Search Console meta tag
+    const verification = config.google_search_console_tag?.trim() || config.google_site_verification?.trim();
+    if (verification && !document.querySelector('meta[name="google-site-verification"]')) {
+      const meta = document.createElement('meta');
+      meta.name = 'google-site-verification';
+      meta.content = verification.replace(/^.*content=["']([^"']+)["'].*$/, '$1');
+      document.head.appendChild(meta);
+    }
+  }, [config]);
+
   // Handle opening booking with pre-selected package
   const handleSelectPackage = (pkgId: number) => {
     setSelectedPackageId(pkgId);
