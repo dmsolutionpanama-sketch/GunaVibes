@@ -18,6 +18,7 @@ import { CountryDemographicsTab } from './CountryDemographicsTab';
 import { SecurityCenterTab } from './SecurityCenterTab';
 import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
 import { BannerManagerTab } from './BannerManagerTab';
+import { WhatsAppTraceabilityTab } from './WhatsAppTraceabilityTab';
 import {
   LogOut,
   Settings,
@@ -42,6 +43,7 @@ import {
   X,
   LayoutDashboard,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -52,6 +54,7 @@ type AdminTab =
   | 'overview'
   | 'funnel'
   | 'reservations'
+  | 'whatsapp'
   | 'calendar-capacity'
   | 'demographics'
   | 'email'
@@ -128,6 +131,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
     {
       groupTitle: 'COMUNICACIÓN & PASARELAS',
       items: [
+        { id: 'whatsapp', label: 'Trazabilidad & WhatsApp', icon: MessageSquare, badgeText: 'Enlace Directo' },
         { id: 'email', label: 'Pasarela de Correo (SMTP)', icon: Mail },
         { id: 'instagram', label: 'Instagram Graph API Feed', icon: Instagram },
         { id: 'google', label: 'Reseñas de Google Places', icon: Star },
@@ -318,6 +322,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToSite }) 
           )}
           {activeTab === 'funnel' && <LeadFunnelDashboardTab />}
           {activeTab === 'reservations' && <ReservationsTab />}
+          {activeTab === 'whatsapp' && <WhatsAppTraceabilityTab />}
           {activeTab === 'calendar-capacity' && <DailyCapacityCalendarTab />}
           {activeTab === 'demographics' && <CountryDemographicsTab />}
           {activeTab === 'email' && <OutgoingEmailTab />}

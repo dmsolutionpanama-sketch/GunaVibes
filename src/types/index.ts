@@ -450,6 +450,41 @@ export interface SiteConfig {
   theme: ThemeConfig;
 }
 
+export interface WhatsAppTemplate {
+  id: string;
+  nombre: string;
+  categoria: 'reserva' | 'pago' | 'recordatorio' | 'clima' | 'bienvenida' | 'general';
+  asunto: string;
+  cuerpo: string;
+  variables_disponibles: string[]; // ['{cliente_nombre}', '{fecha_viaje}', '{pax}', '{monto}', '{link_pago}', '{destino}']
+}
+
+export interface WhatsAppLog {
+  id: number;
+  reserva_id?: number | null;
+  cliente_id?: number | null;
+  destinatario_nombre: string;
+  destinatario_telefono: string;
+  pais_codigo?: string;
+  tipo_evento:
+    | 'reserva_recibida'
+    | 'link_pago_enviado'
+    | 'recordatorio_viaje'
+    | 'alerta_clima'
+    | 'mensaje_personalizado'
+    | 'confirmacion_cupo';
+  plantilla_id?: string;
+  mensaje_cuerpo: string;
+  estado_envio: 'preparado' | 'enviado' | 'entregado' | 'leido' | 'fallido';
+  enlace_directo_wa: string;
+  proveedor_api?: string;
+  respuesta_servidor?: string;
+  creado_por_admin_id?: number | null;
+  creado_por_nombre?: string;
+  creado_en: string;
+  enviado_en?: string;
+}
+
 export interface CapacityCheckResponse {
   fecha: string;
   cupo_maximo: number;

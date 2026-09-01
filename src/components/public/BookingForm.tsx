@@ -3,6 +3,7 @@ import { PackageItem, CapacityCheckResponse, ServiceType } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
+import { COUNTRIES_DATA, findCountryByNameOrCode, CountryInfo } from '../../data/countries';
 import {
   Calendar,
   Users,
@@ -17,29 +18,8 @@ import {
   CheckCircle2,
   Loader2,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
-
-const COMMON_COUNTRIES = [
-  { name: 'Panamá', flag: '🇵🇦', code: 'PA' },
-  { name: 'Estados Unidos', flag: '🇺🇸', code: 'US' },
-  { name: 'Colombia', flag: '🇨🇴', code: 'CO' },
-  { name: 'España', flag: '🇪🇸', code: 'ES' },
-  { name: 'Alemania', flag: '🇩🇪', code: 'DE' },
-  { name: 'Francia', flag: '🇫🇷', code: 'FR' },
-  { name: 'Italia', flag: '🇮🇹', code: 'IT' },
-  { name: 'Costa Rica', flag: '🇨🇷', code: 'CR' },
-  { name: 'México', flag: '🇲🇽', code: 'MX' },
-  { name: 'Canadá', flag: '🇨🇦', code: 'CA' },
-  { name: 'Brasil', flag: '🇧🇷', code: 'BR' },
-  { name: 'Reino Unido', flag: '🇬🇧', code: 'GB' },
-  { name: 'Argentina', flag: '🇦🇷', code: 'AR' },
-  { name: 'Chile', flag: '🇨🇱', code: 'CL' },
-  { name: 'Perú', flag: '🇵🇪', code: 'PE' },
-  { name: 'Suiza', flag: '🇨🇭', code: 'CH' },
-  { name: 'Países Bajos', flag: '🇳🇱', code: 'NL' },
-  { name: 'Australia', flag: '🇦🇺', code: 'AU' },
-  { name: 'Otro', flag: '🌎', code: 'XX' },
-];
 
 interface BookingFormProps {
   packages: PackageItem[];
@@ -51,12 +31,18 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   selectedPackageId,
 }) => {
   const { language, t } = useLanguage();
-  const { theme } = useTheme();
+  const { theme, config } = useTheme();
+
+  // Admin dynamic default capacity
+  const defaultDailyLimit = config?.cupo_maximo_dia || 14;
+
+  // Selected Country object
+  const [selectedCountry, setSelectedCountry] = useState<CountryInfo>(COUNTRIES_DATA[0]); // Panama by default
+  const [localPhoneNumber, setLocalPhoneNumber] = useState('');
 
   // Form State
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
-  const [telefono, setTelefono] = useState('');
   const [paisProcedencia, setPaisProcedencia] = useState('Panamá');
   const [paqueteId, setPaqueteId] = useState<number | ''>(selectedPackageId || '');
   const [tipoServicio, setTipoServicio] = useState<ServiceType>('traslado');
@@ -94,6 +80,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       }
     }
   }, [selectedPackageId, packages]);
+
+  // Handle Country selection change: update country object & preserve local phone digits
+  const handleCountryChange = (countryNameOrCode: string) => {
+    const found = findCountryByNameOrCode(countryNameOrCode);
+    setSelectedCountry(found);
+    setPaisProcedencia(found.name);
+  };
 
   // Query capacity on date or pax change
   useEffect(() => {
@@ -143,17 +136,25 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     }
   };
 
+  // Dynamic max capacity calculated from backend configuration or daily calendar overrides
+  const maxCap = capacity ? capacity.cupo_maximo : defaultDailyLimit;
+  const remaining = capacity ? capacity.cupos_disponibles : maxCap;
+  const occupancyPercent = capacity ? Math.round((capacity.personas_reservadas / maxCap) * 100) : 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
     setSubmitSuccess(null);
 
+    // Build full formatted telephone with international country code
+    const fullPhone = `${selectedCountry.dialCode} ${localPhoneNumber.trim()}`.trim();
+
     // Strict validation
-    if (!nombre.trim() || !correo.trim() || !telefono.trim() || !fechaViaje) {
+    if (!nombre.trim() || !correo.trim() || !localPhoneNumber.trim() || !fechaViaje) {
       setSubmitError(
         language === 'en'
-          ? 'Please complete all required fields.'
-          : 'Por favor completa todos los campos requeridos.'
+          ? 'Please complete all required fields (Name, Email, Telephone, Country, Date and Guests).'
+          : 'Por favor completa todos los campos requeridos (Nombre, Correo, Teléfono con código de país, Fecha y Pasajeros).'
       );
       return;
     }
@@ -172,10 +173,10 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       const res = await api.createReservation({
         nombre_completo: nombre,
         correo,
-        telefono,
+        telefono: fullPhone,
         pais_procedencia: paisProcedencia,
         paquete_id: paqueteId ? Number(paqueteId) : null,
-        tipo_servicio: tipoServicio,
+        tipo_servicio: tipoServicio || 'traslado',
         fecha_viaje: fechaViaje,
         cantidad_personas: cantidadPersonas,
         origen,
@@ -189,22 +190,22 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         // Reset inputs
         setNombre('');
         setCorreo('');
-        setTelefono('');
+        setLocalPhoneNumber('');
         setPaisProcedencia('Panamá');
+        setSelectedCountry(COUNTRIES_DATA[0]);
         setComentarios('');
         setOrigen('');
         setDestino('');
+      } else {
+        setSubmitError(res.message || 'Error al procesar la reserva.');
       }
     } catch (err: any) {
-      setSubmitError(err.message || 'Error al procesar la reserva.');
+      console.error('Error submitting reservation:', err);
+      setSubmitError(err.message || 'Error al procesar la reserva en el servidor.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const remaining = capacity ? capacity.cupos_disponibles : 14;
-  const maxCap = capacity ? capacity.cupo_maximo : 14;
-  const occupancyPercent = capacity ? Math.round((capacity.personas_reservadas / capacity.cupo_maximo) * 100) : 0;
 
   return (
     <section id="booking-section" className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
@@ -223,7 +224,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               {t('booking_title')}
             </h2>
             <p className="text-sm text-stone-600 mt-1">
-              {t('booking_subtitle')}
+              {language === 'en'
+                ? `Capacity of up to ${maxCap} guests per day to ensure personal comfort and safety in San Blas.`
+                : `Capacidad de hasta ${maxCap} pasajeros por día para garantizar tu confort, atención personalizada y seguridad en San Blas.`}
             </p>
           </div>
 
@@ -240,12 +243,12 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           >
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
               <span className={`w-2.5 h-2.5 rounded-full ${remaining === 0 ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-              <span>{checkingCapacity ? t('booking_checking_capacity') : 'Cupo diario'}</span>
+              <span>{checkingCapacity ? t('booking_checking_capacity') : (language === 'en' ? 'Daily Capacity' : 'Cupo Diario')}</span>
             </div>
 
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-black">{remaining}</span>
-              <span className="text-sm font-semibold opacity-70">/ {maxCap} cupos</span>
+              <span className="text-sm font-semibold opacity-70">/ {maxCap} {language === 'en' ? 'spots' : 'cupos'}</span>
             </div>
 
             {/* Occupancy bar */}
@@ -269,8 +272,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               <p className="text-sm mt-1">{submitSuccess}</p>
               <p className="text-xs text-emerald-700 mt-2 font-medium">
                 {language === 'en'
-                  ? 'We will review your date and send the payment link to your registered email.'
-                  : 'Revisaremos tu fecha y te enviaremos el link de pago a tu correo registrado.'}
+                  ? 'We have sent your confirmation details and a WhatsApp notification will be prepared for instant contact.'
+                  : 'Hemos recibido tus datos correctamente y nuestro equipo se comunicará contigo vía WhatsApp y correo con los detalles de confirmación y pago.'}
               </p>
             </div>
           </div>
@@ -287,11 +290,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           </div>
         )}
 
-        {/* Form Body */}
+        {/* Form Body with strict ordering: Name -> Email -> Country -> Phone (with Dial Code) -> Service -> Date -> Pax -> Origin -> Dest -> Comments */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             
-            {/* Full Name */}
+            {/* 1. Full Name */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-stone-400" />
@@ -308,7 +311,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               />
             </div>
 
-            {/* Email */}
+            {/* 2. Email */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-stone-400" />
@@ -325,45 +328,65 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               />
             </div>
 
-            {/* Phone */}
+            {/* 3. Country of Origin (País de Procedencia) - Placed BEFORE telephone */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-stone-400" />
-                <span>{t('booking_phone')} *</span>
-              </label>
-              <input
-                id="booking-input-phone"
-                type="tel"
-                required
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                placeholder="+507 6000-0000"
-                className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-stone-50/50 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] focus:bg-white transition-all"
-              />
-            </div>
-
-            {/* Country of Origin (País de Procedencia) */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-stone-400" />
+                <Globe className="w-3.5 h-3.5 text-[#0E9AA7]" />
                 <span>{language === 'en' ? 'Country of Origin *' : 'País de Procedencia *'}</span>
               </label>
-              <select
-                id="booking-select-country"
-                required
-                value={paisProcedencia}
-                onChange={(e) => setPaisProcedencia(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-white text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] cursor-pointer"
-              >
-                {COMMON_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.name}>
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="booking-select-country"
+                  required
+                  value={paisProcedencia}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-white text-stone-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] cursor-pointer shadow-sm"
+                >
+                  {COUNTRIES_DATA.map((c) => (
+                    <option key={c.code} value={c.name}>
+                      {c.flag} {language === 'en' ? c.nameEn : c.name} ({c.dialCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Service / Package Select */}
+            {/* 4. Telephone / WhatsApp - Placed IMMEDIATELY AFTER Country of Origin with dynamic Country Dial Code */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{t('booking_phone')} (WhatsApp) *</span>
+                </span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  {selectedCountry.flag} {selectedCountry.dialCode}
+                </span>
+              </label>
+
+              <div className="flex items-center rounded-xl border border-stone-300 bg-stone-50/50 overflow-hidden focus-within:ring-2 focus-within:ring-[#0E9AA7] focus-within:bg-white focus-within:border-transparent transition-all shadow-sm">
+                {/* Dial code badge container */}
+                <div className="flex items-center gap-1 px-3 py-3 bg-stone-100/90 border-r border-stone-200 text-stone-800 text-sm font-bold flex-shrink-0 select-none">
+                  <span className="text-base">{selectedCountry.flag}</span>
+                  <span className="font-mono text-xs">{selectedCountry.dialCode}</span>
+                </div>
+
+                {/* Local Phone Input */}
+                <input
+                  id="booking-input-phone"
+                  type="tel"
+                  required
+                  value={localPhoneNumber}
+                  onChange={(e) => setLocalPhoneNumber(e.target.value)}
+                  placeholder={selectedCountry.placeholder || '6000-0000'}
+                  className="w-full px-3.5 py-3 bg-transparent text-stone-900 text-sm focus:outline-none placeholder-stone-400 font-medium"
+                />
+              </div>
+              <p className="text-[10px] text-stone-500 mt-1 flex items-center gap-1">
+                <span>💬 Recibirás asistencia y confirmación rápida vía WhatsApp.</span>
+              </p>
+            </div>
+
+            {/* 5. Service / Package Select */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5 text-stone-400" />
@@ -384,7 +407,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               </select>
             </div>
 
-            {/* Travel Date */}
+            {/* 6. Travel Date */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-stone-400" />
@@ -401,11 +424,16 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               />
             </div>
 
-            {/* Number of Passengers */}
+            {/* 7. Number of Passengers (Quantity limit configured by Admin) */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-stone-400" />
-                <span>{t('booking_pax')} *</span>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-stone-400" />
+                  <span>{t('booking_pax')} *</span>
+                </span>
+                <span className="text-[10px] text-stone-500 font-bold">
+                  Máx: {maxCap}
+                </span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -415,13 +443,16 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                   min={1}
                   max={maxCap}
                   value={cantidadPersonas}
-                  onChange={(e) => setCantidadPersonas(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  onChange={(e) => setCantidadPersonas(Math.max(1, Math.min(maxCap, parseInt(e.target.value, 10) || 1)))}
                   className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-white text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7]"
                 />
               </div>
+              {capacityError && (
+                <p className="text-[11px] text-rose-600 font-medium mt-1">{capacityError}</p>
+              )}
             </div>
 
-            {/* Origin */}
+            {/* 8. Origin */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-stone-400" />
@@ -432,12 +463,12 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                 type="text"
                 value={origen}
                 onChange={(e) => setOrigen(e.target.value)}
-                placeholder="Ej. Hotel RIU Plaza, Calle 50"
+                placeholder="Ej. Hotel RIU Plaza, Ciudad de Panamá"
                 className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-stone-50/50 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] focus:bg-white"
               />
             </div>
 
-            {/* Destination */}
+            {/* 9. Destination */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5 text-stone-400" />
@@ -448,59 +479,46 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                 type="text"
                 value={destino}
                 onChange={(e) => setDestino(e.target.value)}
-                placeholder="Ej. Isla Perro Chico / Pelícano"
-                className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-stone-50/50 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] focus:bg-white"
-              />
-            </div>
-
-            {/* Comments */}
-            <div className="md:col-span-2 lg:col-span-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
-                <MessageSquare className="w-3.5 h-3.5 text-stone-400" />
-                <span>{t('booking_comments')}</span>
-              </label>
-              <input
-                id="booking-input-comments"
-                type="text"
-                value={comentarios}
-                onChange={(e) => setComentarios(e.target.value)}
-                placeholder="Dietas, equipaje especial, horario de vuelo..."
+                placeholder="Ej. Isla Perro Grande / Cabaña sobre el agua"
                 className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-stone-50/50 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] focus:bg-white"
               />
             </div>
           </div>
 
-          {/* Quota Warning Message if requested > remaining */}
-          {capacityError && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span>{capacityError}</span>
-            </div>
-          )}
+          {/* 10. Comments & Special Requests */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5 flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-stone-400" />
+              <span>{t('booking_comments')}</span>
+            </label>
+            <textarea
+              id="booking-input-comments"
+              rows={2}
+              value={comentarios}
+              onChange={(e) => setComentarios(e.target.value)}
+              placeholder="¿Restricciones alimenticias, niños, equipaje especial o dudas sobre el cruce de frontera comarcal?"
+              className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-stone-50/50 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#0E9AA7] focus:bg-white"
+            />
+          </div>
 
           {/* Submit Button */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-200">
-            <p className="text-xs text-stone-500 text-center sm:text-left">
-              🔒 Recibirás un correo de confirmación formal y el link de pago seguro (Yappy / Tarjeta / Transferencia).
-            </p>
+          <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-stone-500">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Garantía de cupo directo con capitanes gunas locales certificados.</span>
+            </div>
 
             <button
-              id="booking-submit-btn"
+              id="booking-submit-button"
               type="submit"
-              disabled={isSubmitting || (capacity ? !capacity.disponible : false)}
-              className={`w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                isSubmitting || (capacity && !capacity.disponible)
-                  ? 'opacity-60 cursor-not-allowed bg-stone-400'
-                  : 'hover:scale-102 active:scale-98'
-              }`}
-              style={{
-                backgroundColor: isSubmitting || (capacity && !capacity.disponible) ? undefined : theme.secondaryColor,
-              }}
+              disabled={isSubmitting || checkingCapacity || (capacity ? !capacity.disponible : false)}
+              className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-bold text-base shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              style={{ backgroundColor: theme.secondaryColor || '#E8622C' }}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Procesando reserva...</span>
+                  <span>{language === 'en' ? 'Processing Booking...' : 'Procesando Reserva...'}</span>
                 </>
               ) : (
                 <>

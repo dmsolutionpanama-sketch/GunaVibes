@@ -109,8 +109,8 @@ router.get('/capacity', (req: Request, res: Response) => {
   res.json(result);
 });
 
-// Create Reservation
-router.post('/reservations', (req: Request, res: Response) => {
+// Create Reservation Handler
+const handleCreateReservation = (req: Request, res: Response) => {
   const {
     nombre_completo,
     correo,
@@ -126,8 +126,8 @@ router.post('/reservations', (req: Request, res: Response) => {
     idioma_preferido,
   } = req.body;
 
-  if (!nombre_completo || !correo || !telefono || !tipo_servicio || !fecha_viaje || !cantidad_personas) {
-    return res.status(400).json({ error: 'Por favor completa todos los campos obligatorios' });
+  if (!nombre_completo || !correo || !telefono || !fecha_viaje || !cantidad_personas) {
+    return res.status(400).json({ error: 'Por favor completa todos los campos obligatorios (Nombre, Correo, Teléfono, Fecha y Pasajeros)' });
   }
 
   const parsedPax = parseInt(cantidad_personas, 10);
@@ -135,18 +135,29 @@ router.post('/reservations', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'La cantidad de personas debe ser un número mayor a 0' });
   }
 
+  // Resolve tipo_servicio from package if not explicitly provided
+  let resolvedTipoServicio = tipo_servicio;
+  let resolvedPaqueteId = paquete_id ? parseInt(paquete_id, 10) : null;
+  if (resolvedPaqueteId && !resolvedTipoServicio) {
+    const pkg = db.getPackageById(resolvedPaqueteId);
+    if (pkg) resolvedTipoServicio = pkg.tipo;
+  }
+  if (!resolvedTipoServicio) {
+    resolvedTipoServicio = 'traslado';
+  }
+
   const outcome = db.createReservation({
-    nombre_completo,
-    correo,
-    telefono,
-    pais_procedencia: pais_procedencia || 'Panamá',
-    paquete_id: paquete_id ? parseInt(paquete_id, 10) : null,
-    tipo_servicio,
-    fecha_viaje,
+    nombre_completo: String(nombre_completo).trim(),
+    correo: String(correo).trim(),
+    telefono: String(telefono).trim(),
+    pais_procedencia: pais_procedencia ? String(pais_procedencia).trim() : 'Panamá',
+    paquete_id: resolvedPaqueteId,
+    tipo_servicio: resolvedTipoServicio,
+    fecha_viaje: String(fecha_viaje).trim(),
     cantidad_personas: parsedPax,
-    origen,
-    destino,
-    comentarios,
+    origen: origen ? String(origen).trim() : '',
+    destino: destino ? String(destino).trim() : '',
+    comentarios: comentarios ? String(comentarios).trim() : '',
     idioma_preferido: idioma_preferido === 'en' ? 'en' : 'es',
   });
 
@@ -155,7 +166,12 @@ router.post('/reservations', (req: Request, res: Response) => {
   }
 
   res.status(201).json(outcome);
-});
+};
+
+// Map routes and aliases
+router.post('/reservations', handleCreateReservation);
+router.post('/bookings', handleCreateReservation);
+router.post('/reservas', handleCreateReservation);
 
 // Lead Registration (Live Alerts & Newsletter)
 router.post('/clients/register', (req: Request, res: Response) => {
@@ -729,3 +745,77 @@ router.get('/admin/demographics/countries', requireAuth, (req: Request, res: Res
 router.get('/admin/audit-logs', requireAuth, (req: Request, res: Response) => {
   res.json(db.getAuditLogs());
 });
+
+// Admin WhatsApp Templates & Messaging Traceability
+router.get('/admin/whatsapp/templates', requireAuth, (req: Request, res: Response) => {
+  res.json(db.getWhatsAppTemplates());
+});
+
+router.post('/admin/whatsapp/templates', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const template = db.saveWhatsAppTemplate(req.body, user.id);
+  res.json(template);
+});
+
+router.get('/admin/whatsapp/logs', requireAuth, (req: Request, res: Response) => {
+  const reservaId = req.query.reservaId ? parseInt(req.query.reservaId as string, 10) : undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+  res.json(db.getWhatsAppLogs(reservaId, limit));
+});
+
+router.post('/admin/whatsapp/logs', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const {
+    reserva_id,
+    cliente_id,
+    destinatario_nombre,
+    destinatario_telefono,
+    pais_codigo,
+    tipo_evento,
+    plantilla_id,
+    mensaje_cuerpo,
+    estado_envio,
+    enlace_directo_wa,
+    proveedor_api,
+  } = req.body;
+
+  if (!destinatario_nombre || !destinatario_telefono || !mensaje_cuerpo) {
+    return res.status(400).json({ error: 'Nombre, teléfono y cuerpo del mensaje son requeridos' });
+  }
+
+  const log = db.createWhatsAppLog({
+    reserva_id: reserva_id ? parseInt(reserva_id, 10) : null,
+    cliente_id: cliente_id ? parseInt(cliente_id, 10) : null,
+    destinatario_nombre,
+    destinatario_telefono,
+    pais_codigo: pais_codigo || 'PA',
+    tipo_evento: tipo_evento || 'mensaje_personalizado',
+    plantilla_id,
+    mensaje_cuerpo,
+    estado_envio: estado_envio || 'preparado',
+    enlace_directo_wa,
+    proveedor_api: proveedor_api || 'whatsapp_direct_gateway',
+    creado_por_admin_id: user.id,
+    creado_por_nombre: user.nombre,
+  });
+
+  res.status(201).json(log);
+});
+
+router.put('/admin/whatsapp/logs/:id/status', requireAuth, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const id = parseInt(req.params.id, 10);
+  const { estado } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ error: 'El estado es requerido' });
+  }
+
+  const updated = db.updateWhatsAppLogStatus(id, estado, user.id, user.nombre);
+  if (!updated) {
+    return res.status(404).json({ error: 'Registro de WhatsApp no encontrado' });
+  }
+
+  res.json(updated);
+});
+

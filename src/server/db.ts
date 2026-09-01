@@ -29,6 +29,8 @@ import {
   VideoItem,
   YouTubeLiveStatus,
   MediaAsset,
+  WhatsAppLog,
+  WhatsAppTemplate,
 } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'guna_vibes_super_secret_jwt_2026_san_blas';
@@ -56,7 +58,57 @@ interface DatabaseStore {
   google_reviews_resumen: GoogleReviewsSummary;
   instagram_media_cache: InstagramMedia[];
   archivos_multimedia: MediaAsset[];
+  whatsapp_logs: WhatsAppLog[];
+  whatsapp_templates: WhatsAppTemplate[];
 }
+
+const initialWhatsAppTemplates: WhatsAppTemplate[] = [
+  {
+    id: 'reserva_recibida',
+    nombre: 'Confirmación de Solicitud Recibida',
+    categoria: 'reserva',
+    asunto: '¡Solicitud recibida! Guna Vibes San Blas',
+    cuerpo:
+      '🏝️ *¡Hola {cliente_nombre}!* Recibimos tu solicitud de reserva en *Guna Vibes San Blas* para el día *{fecha_viaje}* ({pax} personas) destino *{destino}*. En breve te enviaremos los detalles para asegurar tus cupos. ⛵🌊',
+    variables_disponibles: ['{cliente_nombre}', '{fecha_viaje}', '{pax}', '{destino}', '{tipo_servicio}'],
+  },
+  {
+    id: 'link_pago',
+    nombre: 'Envío de Link de Pago Seguro (Yappy / Tarjeta / Transferencia)',
+    categoria: 'pago',
+    asunto: 'Link de Pago para tu reserva en San Blas',
+    cuerpo:
+      '💳 *Guna Vibes San Blas* - ¡Hola {cliente_nombre}! Tus {pax} cupos para el *{fecha_viaje}* están listos. Para confirmar tu reserva por favor completa el pago seguro de *${monto} USD* en el siguiente enlace: {link_pago}. ¡Te esperamos en el paraíso!',
+    variables_disponibles: ['{cliente_nombre}', '{fecha_viaje}', '{pax}', '{monto}', '{link_pago}'],
+  },
+  {
+    id: 'recordatorio_viaje',
+    nombre: 'Recordatorio de Salida y Recomendaciones de Equipaje',
+    categoria: 'recordatorio',
+    asunto: 'Recordatorio de Viaje a San Blas',
+    cuerpo:
+      '⏰ *Recordatorio de Viaje Guna Vibes*: Hola {cliente_nombre}, tu salida hacia San Blas es el *{fecha_viaje}*. Recomendaciones: Pasaporte o cédula original en mano, efectivo para impuestos comarcales ($22 extranjeros / $7 panameños) y equipaje liviano. Salida puntual 5:00 AM. 🚗🌴',
+    variables_disponibles: ['{cliente_nombre}', '{fecha_viaje}', '{pax}', '{origen}'],
+  },
+  {
+    id: 'alerta_clima',
+    nombre: 'Aviso Operativo / Condiciones del Mar y Clima',
+    categoria: 'clima',
+    asunto: 'Estado del Clima y Operación en San Blas',
+    cuerpo:
+      '☀️ *Aviso Operativo San Blas*: Hola {cliente_nombre}, te confirmamos condiciones marítimas y climáticas ideales para tu experiencia del *{fecha_viaje}*. ¡Nuestros capitanes gunas están listos para recibirte!',
+    variables_disponibles: ['{cliente_nombre}', '{fecha_viaje}'],
+  },
+  {
+    id: 'bienvenida_lead',
+    nombre: 'Saludo de Bienvenida y Asesoría Personalizada',
+    categoria: 'bienvenida',
+    asunto: 'Bienvenido a Guna Vibes San Blas',
+    cuerpo:
+      '👋 *¡Hola {cliente_nombre}!* Gracias por tu interés en vivir la experiencia *Guna Vibes San Blas*. ¿En qué fecha te gustaría viajar o qué tipo de tour o cabaña estás buscando?',
+    variables_disponibles: ['{cliente_nombre}', '{pais}'],
+  },
+];
 
 const initialEmailConfig: EmailConfig = {
   provider: 'google_workspace',
@@ -1097,6 +1149,8 @@ class Database {
       google_reviews_resumen: initialGoogleSummary,
       instagram_media_cache: initialInstagramMedia,
       archivos_multimedia: [],
+      whatsapp_logs: [],
+      whatsapp_templates: initialWhatsAppTemplates,
     };
   }
 
@@ -1110,6 +1164,12 @@ class Database {
           this.store = { ...this.getDefaultStore(), ...parsed };
           if (!Array.isArray(this.store.archivos_multimedia)) {
             this.store.archivos_multimedia = [];
+          }
+          if (!Array.isArray(this.store.whatsapp_logs)) {
+            this.store.whatsapp_logs = [];
+          }
+          if (!Array.isArray(this.store.whatsapp_templates) || this.store.whatsapp_templates.length === 0) {
+            this.store.whatsapp_templates = initialWhatsAppTemplates;
           }
           return;
         }
@@ -1681,6 +1741,31 @@ class Database {
       idioma_preferido: data.idioma_preferido || 'es',
       acepta_notificaciones: true,
     });
+
+    // Generate initial WhatsApp Traceability log for immediate tracking & 1-click dispatch
+    try {
+      const cleanPhone = data.telefono.replace(/[^\d+]/g, '');
+      const rawWaPhone = cleanPhone.startsWith('+') ? cleanPhone.slice(1) : cleanPhone;
+      const initialText = `🏝️ *¡Hola ${data.nombre_completo}!* Recibimos tu solicitud de reserva en *Guna Vibes San Blas* para el día *${data.fecha_viaje}* (${data.cantidad_personas} personas). En breve nuestro equipo verificará tu cupo para enviarte el link de pago y asegurar tus asientos. ⛵🌊`;
+      const waLink = `https://api.whatsapp.com/send?phone=${rawWaPhone}&text=${encodeURIComponent(initialText)}`;
+
+      this.createWhatsAppLog({
+        reserva_id: newRes.id,
+        destinatario_nombre: data.nombre_completo,
+        destinatario_telefono: data.telefono,
+        pais_codigo: data.pais_procedencia,
+        tipo_evento: 'reserva_recibida',
+        plantilla_id: 'reserva_recibida',
+        mensaje_cuerpo: initialText,
+        estado_envio: 'preparado',
+        enlace_directo_wa: waLink,
+        proveedor_api: 'whatsapp_direct_gateway',
+      });
+    } catch (waErr) {
+      console.warn('Error preparando trazabilidad inicial de WhatsApp:', waErr);
+    }
+
+    this.saveToDisk();
 
     this.logAudit(null, 'nueva_reserva_publica', `Nueva reserva #${newRes.id} creada por ${newRes.nombre_completo} (${newRes.pais_procedencia}) para ${newRes.fecha_viaje} (${newRes.cantidad_personas} pax)`);
 
@@ -2620,6 +2705,132 @@ class Database {
     );
 
     return true;
+  }
+
+  // --- WHATSAPP MESSAGING & TRACEABILITY ---
+
+  public getWhatsAppTemplates(): WhatsAppTemplate[] {
+    if (!this.store.whatsapp_templates || this.store.whatsapp_templates.length === 0) {
+      this.store.whatsapp_templates = initialWhatsAppTemplates;
+    }
+    return this.store.whatsapp_templates;
+  }
+
+  public getWhatsAppTemplateById(id: string): WhatsAppTemplate | undefined {
+    return this.getWhatsAppTemplates().find((t) => t.id === id);
+  }
+
+  public saveWhatsAppTemplate(template: WhatsAppTemplate, adminId?: number | null): WhatsAppTemplate {
+    if (!this.store.whatsapp_templates) {
+      this.store.whatsapp_templates = initialWhatsAppTemplates;
+    }
+    const idx = this.store.whatsapp_templates.findIndex((t) => t.id === template.id);
+    if (idx >= 0) {
+      this.store.whatsapp_templates[idx] = template;
+    } else {
+      this.store.whatsapp_templates.push(template);
+    }
+    this.saveToDisk();
+    this.logAudit(
+      adminId || null,
+      'GUARDAR_PLANTILLA_WHATSAPP',
+      `Plantilla de WhatsApp "${template.nombre}" (${template.id}) guardada exitosamente.`
+    );
+    return template;
+  }
+
+  public getWhatsAppLogs(reservaId?: number | null, limit = 100): WhatsAppLog[] {
+    if (!this.store.whatsapp_logs) {
+      this.store.whatsapp_logs = [];
+    }
+    let logs = this.store.whatsapp_logs;
+    if (reservaId) {
+      logs = logs.filter((l) => l.reserva_id === reservaId);
+    }
+    return logs.slice(0, limit);
+  }
+
+  public createWhatsAppLog(data: {
+    reserva_id?: number | null;
+    cliente_id?: number | null;
+    destinatario_nombre: string;
+    destinatario_telefono: string;
+    pais_codigo?: string;
+    tipo_evento: WhatsAppLog['tipo_evento'];
+    plantilla_id?: string;
+    mensaje_cuerpo: string;
+    estado_envio?: WhatsAppLog['estado_envio'];
+    enlace_directo_wa?: string;
+    proveedor_api?: string;
+    creado_por_admin_id?: number | null;
+    creado_por_nombre?: string;
+  }): WhatsAppLog {
+    if (!this.store.whatsapp_logs) {
+      this.store.whatsapp_logs = [];
+    }
+
+    const cleanPhone = data.destinatario_telefono.replace(/[^\d+]/g, '');
+    const rawWaPhone = cleanPhone.startsWith('+') ? cleanPhone.slice(1) : cleanPhone;
+    const directWaLink =
+      data.enlace_directo_wa ||
+      `https://api.whatsapp.com/send?phone=${rawWaPhone}&text=${encodeURIComponent(data.mensaje_cuerpo)}`;
+
+    const newId = this.store.whatsapp_logs.length > 0
+      ? Math.max(...this.store.whatsapp_logs.map((l) => l.id)) + 1
+      : 1;
+
+    const logEntry: WhatsAppLog = {
+      id: newId,
+      reserva_id: data.reserva_id || null,
+      cliente_id: data.cliente_id || null,
+      destinatario_nombre: data.destinatario_nombre,
+      destinatario_telefono: data.destinatario_telefono,
+      pais_codigo: data.pais_codigo || 'PA',
+      tipo_evento: data.tipo_evento,
+      plantilla_id: data.plantilla_id,
+      mensaje_cuerpo: data.mensaje_cuerpo,
+      estado_envio: data.estado_envio || 'preparado',
+      enlace_directo_wa: directWaLink,
+      proveedor_api: data.proveedor_api || 'whatsapp_direct_gateway',
+      creado_por_admin_id: data.creado_por_admin_id || null,
+      creado_por_nombre: data.creado_por_nombre || 'Sistema Automatizado Guna Vibes',
+      creado_en: new Date().toISOString(),
+      enviado_en: data.estado_envio === 'enviado' ? new Date().toISOString() : undefined,
+    };
+
+    this.store.whatsapp_logs.unshift(logEntry);
+    this.saveToDisk();
+
+    this.logAudit(
+      data.creado_por_admin_id || null,
+      'TRAZABILIDAD_WHATSAPP',
+      `Mensaje WhatsApp (${data.tipo_evento}) registrado para ${data.destinatario_nombre} (${data.destinatario_telefono}) - Estado: ${logEntry.estado_envio}`
+    );
+
+    return logEntry;
+  }
+
+  public updateWhatsAppLogStatus(
+    id: number,
+    estado: WhatsAppLog['estado_envio'],
+    adminId?: number | null,
+    adminNombre?: string
+  ): WhatsAppLog | null {
+    if (!this.store.whatsapp_logs) return null;
+    const item = this.store.whatsapp_logs.find((l) => l.id === id);
+    if (!item) return null;
+
+    item.estado_envio = estado;
+    if (estado === 'enviado' || estado === 'entregado') {
+      item.enviado_en = new Date().toISOString();
+    }
+    if (adminId) {
+      item.creado_por_admin_id = adminId;
+      item.creado_por_nombre = adminNombre || item.creado_por_nombre;
+    }
+
+    this.saveToDisk();
+    return item;
   }
 }
 

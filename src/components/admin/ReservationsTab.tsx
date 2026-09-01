@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Reservation, ReservationStatus } from '../../types';
+import { Reservation, ReservationStatus, WhatsAppLog, WhatsAppTemplate } from '../../types';
 import { api } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { COUNTRIES_DATA, findCountryByNameOrCode } from '../../data/countries';
 import {
   Calendar,
   Search,
@@ -22,6 +23,10 @@ import {
   X,
   History,
   AlertCircle,
+  MessageSquare,
+  Sparkles,
+  ExternalLink,
+  Globe,
 } from 'lucide-react';
 
 export const ReservationsTab: React.FC = () => {
@@ -43,11 +48,25 @@ export const ReservationsTab: React.FC = () => {
   const [sendingPayment, setSendingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
+  // WhatsApp Messaging & Traceability Modal State
+  const [whatsAppModalRes, setWhatsAppModalRes] = useState<Reservation | null>(null);
+  const [waTemplates, setWaTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [selectedWaTplId, setSelectedWaTplId] = useState<string>('reserva_recibida');
+  const [waMessageBody, setWaMessageBody] = useState<string>('');
+  const [waLogsForRes, setWaLogsForRes] = useState<WhatsAppLog[]>([]);
+  const [loadingWaLogs, setLoadingWaLogs] = useState(false);
+  const [dispatchingWa, setDispatchingWa] = useState(false);
+  const [waSuccess, setWaSuccess] = useState(false);
+
   const loadReservations = async () => {
     setLoading(true);
     try {
-      const data = await api.getAdminReservations(statusFilter, dateFilter);
+      const [data, tpls] = await Promise.all([
+        api.getAdminReservations(statusFilter, dateFilter),
+        api.getWhatsAppTemplates(),
+      ]);
       setReservations(data);
+      setWaTemplates(tpls || []);
     } catch (err) {
       console.error('Error cargando reservas:', err);
     } finally {
@@ -58,6 +77,79 @@ export const ReservationsTab: React.FC = () => {
   useEffect(() => {
     loadReservations();
   }, [statusFilter, dateFilter]);
+
+  const openWhatsAppModal = async (res: Reservation) => {
+    setWhatsAppModalRes(res);
+    setWaSuccess(false);
+    setLoadingWaLogs(true);
+
+    try {
+      const logs = await api.getWhatsAppLogs(res.id);
+      setWaLogsForRes(logs || []);
+    } catch (e) {
+      console.warn('Error cargando logs de WhatsApp:', e);
+    } finally {
+      setLoadingWaLogs(false);
+    }
+
+    // Prepare template text
+    applyWaTemplate('reserva_recibida', res, waTemplates);
+  };
+
+  const applyWaTemplate = (tplId: string, res: Reservation, templatesList: WhatsAppTemplate[]) => {
+    setSelectedWaTplId(tplId);
+    const tpl = templatesList.find((t) => t.id === tplId);
+    if (!tpl) return;
+
+    const amountStr = res.monto_total ? `$${res.monto_total} USD` : '$280 USD';
+    const payLink = 'https://yappy.banistmo.com/pay/gunavibes-sanblas';
+    const destination = res.destino || 'San Blas, Gunayala';
+
+    const compiled = tpl.cuerpo
+      .replace(/{cliente_nombre}/g, res.nombre_completo)
+      .replace(/{fecha_viaje}/g, res.fecha_viaje)
+      .replace(/{pax}/g, String(res.cantidad_personas))
+      .replace(/{monto}/g, amountStr)
+      .replace(/{link_pago}/g, payLink)
+      .replace(/{destino}/g, destination);
+
+    setWaMessageBody(compiled);
+  };
+
+  const handleDispatchWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!whatsAppModalRes || !waMessageBody) return;
+
+    setDispatchingWa(true);
+    const cleanPhone = whatsAppModalRes.telefono.replace(/[^\d+]/g, '');
+    const rawWaPhone = cleanPhone.startsWith('+') ? cleanPhone.slice(1) : cleanPhone;
+    const directLink = `https://api.whatsapp.com/send?phone=${rawWaPhone}&text=${encodeURIComponent(waMessageBody)}`;
+
+    try {
+      await api.createWhatsAppLog({
+        reserva_id: whatsAppModalRes.id,
+        destinatario_nombre: whatsAppModalRes.nombre_completo,
+        destinatario_telefono: whatsAppModalRes.telefono,
+        pais_codigo: whatsAppModalRes.pais_procedencia || 'PA',
+        tipo_evento: selectedWaTplId as any,
+        plantilla_id: selectedWaTplId,
+        mensaje_cuerpo: waMessageBody,
+        estado_envio: 'enviado',
+        enlace_directo_wa: directLink,
+      });
+
+      setWaSuccess(true);
+      window.open(directLink, '_blank');
+
+      // Refresh logs for this reservation
+      const refreshedLogs = await api.getWhatsAppLogs(whatsAppModalRes.id);
+      setWaLogsForRes(refreshedLogs);
+    } catch (err: any) {
+      alert(err.message || 'Error despachando WhatsApp');
+    } finally {
+      setDispatchingWa(false);
+    }
+  };
 
   const handleStatusChange = async (id: number, newStatus: ReservationStatus) => {
     try {
@@ -268,6 +360,16 @@ export const ReservationsTab: React.FC = () => {
                       {getStatusBadge(res.estado)}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                      {/* WhatsApp Direct & Traceability button */}
+                      <button
+                        onClick={() => openWhatsAppModal(res)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px]"
+                        title="Gestionar Trazabilidad y Notificación WhatsApp"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>WhatsApp</span>
+                      </button>
+
                       {/* Send Payment Link button */}
                       <button
                         onClick={() => openPaymentModal(res)}
@@ -559,6 +661,18 @@ export const ReservationsTab: React.FC = () => {
                 onClick={() => {
                   const r = selectedRes;
                   setSelectedRes(null);
+                  openWhatsAppModal(r);
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md flex items-center gap-2 text-xs cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>WhatsApp & Trazabilidad</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const r = selectedRes;
+                  setSelectedRes(null);
                   openPaymentModal(r);
                 }}
                 className="px-5 py-2.5 rounded-xl font-bold text-white shadow-md flex items-center gap-2 text-xs cursor-pointer"
@@ -567,6 +681,167 @@ export const ReservationsTab: React.FC = () => {
                 <CreditCard className="w-4 h-4" />
                 <span>Enviar Link de Pago Ahora</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: WhatsApp Messaging & Traceability */}
+      {whatsAppModalRes && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-stone-200 space-y-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-stone-900">
+                      Mensajes & Trazabilidad de WhatsApp
+                    </h3>
+                    <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                      Reserva #{whatsAppModalRes.id}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500">
+                    {whatsAppModalRes.nombre_completo} • {whatsAppModalRes.pais_procedencia || 'Panamá'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setWhatsAppModalRes(null)}
+                className="p-1.5 rounded-full text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Recipient summary badge */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#0E9AA7]" />
+                <span className="font-semibold text-stone-700">País:</span>
+                <span className="font-bold text-stone-900">{whatsAppModalRes.pais_procedencia || 'Panamá'}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-stone-700">Teléfono:</span>
+                <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                  {whatsAppModalRes.telefono}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-amber-600" />
+                <span className="font-semibold text-stone-700">Viaje:</span>
+                <span className="font-bold text-stone-900">{whatsAppModalRes.fecha_viaje} ({whatsAppModalRes.cantidad_personas} pax)</span>
+              </div>
+            </div>
+
+            {/* Template Selector */}
+            <div>
+              <label className="block text-xs font-bold uppercase text-stone-700 mb-1.5 flex items-center justify-between">
+                <span>Seleccionar Plantilla Oficial de Guna Vibes</span>
+                <span className="text-[10px] text-stone-400 font-normal">Reemplaza variables automáticamente</span>
+              </label>
+              <select
+                value={selectedWaTplId}
+                onChange={(e) => applyWaTemplate(e.target.value, whatsAppModalRes, waTemplates)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs bg-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
+              >
+                {waTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Message Body preview / edit */}
+            <div>
+              <label className="block text-xs font-bold uppercase text-stone-700 mb-1 flex items-center justify-between">
+                <span>Mensaje a Despachar (Editable)</span>
+                <span className="text-[11px] text-stone-400 font-mono">
+                  {waMessageBody.length} caracteres
+                </span>
+              </label>
+              <textarea
+                rows={6}
+                value={waMessageBody}
+                onChange={(e) => setWaMessageBody(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border border-stone-300 text-xs font-sans leading-relaxed bg-stone-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+              />
+            </div>
+
+            {/* Dispatch Action */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-stone-200">
+              <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Al hacer clic se abrirá WhatsApp y se registrará la trazabilidad.</span>
+              </div>
+
+              <button
+                onClick={handleDispatchWhatsApp}
+                disabled={dispatchingWa || !waMessageBody.trim()}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {dispatchingWa ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Registrando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Abrir y Despachar en WhatsApp</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Historical WhatsApp Traceability for this Reservation */}
+            <div className="pt-3 border-t border-stone-200 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
+                <History className="w-4 h-4 text-emerald-600" />
+                <span>Trazabilidad de Mensajes Enviados a esta Reserva ({waLogsForRes.length})</span>
+              </h4>
+
+              {loadingWaLogs ? (
+                <p className="text-xs text-stone-400">Cargando trazabilidad...</p>
+              ) : waLogsForRes.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {waLogsForRes.map((log) => (
+                    <div key={log.id} className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between text-stone-500">
+                        <span className="font-semibold text-stone-800">{log.tipo_evento.replace(/_/g, ' ')}</span>
+                        <span>{new Date(log.creado_en).toLocaleString()}</span>
+                      </div>
+                      <p className="text-stone-700 text-[11px] leading-relaxed bg-white p-2 rounded-lg border border-stone-100">
+                        {log.mensaje_cuerpo}
+                      </p>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[10px] text-stone-400 font-mono">Estado: {log.estado_envio}</span>
+                        <a
+                          href={log.enlace_directo_wa}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-emerald-700 hover:text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1"
+                        >
+                          <span>Reenviar enlace</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-stone-400 italic">
+                  Aún no hay mensajes previos registrados para esta reserva.
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -22,6 +22,8 @@ import {
   Testimonial,
   VideoItem,
   YouTubeLiveStatus,
+  WhatsAppLog,
+  WhatsAppTemplate,
 } from '../types';
 
 const API_BASE = '/api';
@@ -1337,5 +1339,67 @@ export const api = {
       headers: { ...getAuthHeader() },
     });
     return await parseJsonResponse(res, 'Error al eliminar testimonio');
+  },
+
+  // ==========================================
+  // 17. WHATSAPP MESSAGING & TRACEABILITY
+  // ==========================================
+
+  async getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
+    try {
+      const res = await fetch(`${API_BASE}/admin/whatsapp/templates`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (res.ok) {
+        return await parseJsonResponse(res);
+      }
+    } catch (e) {
+      console.warn('API getWhatsAppTemplates fallback:', e);
+    }
+    return [];
+  },
+
+  async saveWhatsAppTemplate(template: WhatsAppTemplate): Promise<WhatsAppTemplate> {
+    const res = await fetch(`${API_BASE}/admin/whatsapp/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(template),
+    });
+    return await parseJsonResponse(res, 'Error al guardar plantilla de WhatsApp');
+  },
+
+  async getWhatsAppLogs(reservaId?: number, limit = 100): Promise<WhatsAppLog[]> {
+    try {
+      const url = reservaId
+        ? `${API_BASE}/admin/whatsapp/logs?reservaId=${reservaId}&limit=${limit}`
+        : `${API_BASE}/admin/whatsapp/logs?limit=${limit}`;
+      const res = await fetch(url, {
+        headers: { ...getAuthHeader() },
+      });
+      if (res.ok) {
+        return await parseJsonResponse(res);
+      }
+    } catch (e) {
+      console.warn('API getWhatsAppLogs fallback:', e);
+    }
+    return [];
+  },
+
+  async createWhatsAppLog(data: Partial<WhatsAppLog>): Promise<WhatsAppLog> {
+    const res = await fetch(`${API_BASE}/admin/whatsapp/logs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    });
+    return await parseJsonResponse(res, 'Error al registrar trazabilidad de WhatsApp');
+  },
+
+  async updateWhatsAppLogStatus(id: number, estado: WhatsAppLog['estado_envio']): Promise<WhatsAppLog> {
+    const res = await fetch(`${API_BASE}/admin/whatsapp/logs/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ estado }),
+    });
+    return await parseJsonResponse(res, 'Error al actualizar estado del mensaje');
   },
 };
